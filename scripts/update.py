@@ -3,7 +3,7 @@
 
 No file rotation is needed: both snapshots are chosen by name from the archive.
 """
-import csv, io, json, re, sys, zipfile
+import csv, io, json, re, sys, tempfile, zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -11,14 +11,18 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA, CHARTS = ROOT / "data", ROOT / "charts"
 META = DATA / "meta.json"
+HIST = DATA / "revision_history.csv"
 CFG = json.loads((ROOT / "config.json").read_text())
 TH = CFG["thresholds"]
+FLAG_Z = CFG.get("flag_z", 2.0)          # |robust z| above this is flagged
+MIN_N = CFG.get("min_history_days", 15)  # baseline days needed per state and lead
 AEST = timezone(timedelta(hours=10))  # NEM time: fixed UTC+10, no DST
 HDR = {"User-Agent": "Mozilla/5.0 (demand-dashboard)"}
 PAT = re.compile(r"PUBLIC_FORECAST_OPERATIONAL_DEMAND_HH_\d{12}_(\d{14})\.zip")
@@ -67,6 +71,7 @@ def sync():
             fetch(name, dest)
             print("Downloaded", key, name)
     META.write_text(json.dumps(want, indent=2))
+    return files
 
 
 # ---------- parsing ----------
@@ -196,25 +201,111 @@ def plot_states(t):
         fig.savefig(CHARTS / f"{st}.png", dpi=130); plt.close(fig)
 
 
-def plot_delta(t, y):
-    # Like-for-like: only intervals present in BOTH snapshots, so the partial
-    # first day and the extra final day of 'today' cannot distort the maxima.
+# ---------- is today's revision unusual? (baseline built from the archive) ----------
+_frames = {}
+
+
+def snap_frame(name):
+    if name not in _frames:
+        r = requests.get(CFG["base_url"] + name, headers=HDR, timeout=120)
+        r.raise_for_status()
+        with zipfile.ZipFile(io.BytesIO(r.content)) as z, tempfile.TemporaryDirectory() as td:
+            tmp = Path(td) / "snap.csv"
+            tmp.write_bytes(z.read(z.namelist()[0]))
+            _frames[name] = load(tmp)
+    return _frames[name]
+
+
+def try_pick(files, day):
+    """Like pick(), but returns None instead of exiting when there is no suitable file."""
+    hh, mm = map(int, CFG["snapshot_time_aest"].split(":"))
+    cutoff = datetime(day.year, day.month, day.day, hh, mm)
+    ok = {n: t for n, t in files.items() if t <= cutoff and cutoff - t <= timedelta(hours=3)}
+    return max(ok, key=ok.get) if ok else None
+
+
+def daily_changes(t, y):
+    """Daily max POE50, like-for-like, for two snapshots (columns: region, day, today_max, yest_max, delta)."""
     m = t.merge(y, on=["region", "time"], suffixes=("_t", "_y"))
     if m.empty:
-        print("No overlap between today and yest - skipping delta chart")
-        return
+        return None
     m["day"] = aest_day(m["time"])
     d = m.groupby(["region", "day"]).agg(today_max=("poe50_t", "max"),
                                          yest_max=("poe50_y", "max")).reset_index()
     d["delta"] = d.today_max - d.yest_max
-    d.round(0).to_csv(DATA / "daily_max_poe50.csv", index=False)
+    return d
+
+
+def update_history(files, today):
+    """One row per (snapshot date, state, target day); only missing dates are downloaded."""
+    snap = CFG["snapshot_time_aest"]
+    cols = ["snap", "snap_date", "region", "day", "lead", "today_max", "yest_max", "delta"]
+    if HIST.exists():
+        h = pd.read_csv(HIST, dtype={"snap": str})
+        h = h[(h.snap == snap) & (h.snap_date != today.isoformat())]  # today is always refreshed
+    else:
+        h = pd.DataFrame(columns=cols)
+    have = set(h.snap_date)
+    new, d = [], min(files.values()).date() + timedelta(days=1)
+    while d <= today:
+        if d.isoformat() not in have:
+            a, b = try_pick(files, d), try_pick(files, d - timedelta(days=1))
+            if a and b:
+                ch = daily_changes(snap_frame(a), snap_frame(b))
+                if ch is not None:
+                    ch["snap"], ch["snap_date"] = snap, d.isoformat()
+                    ch["lead"] = (pd.to_datetime(ch.day) - pd.Timestamp(d)).dt.days
+                    ch["day"] = ch.day.astype(str)
+                    new.append(ch[cols])
+        d += timedelta(days=1)
+    h = pd.concat([h] + new, ignore_index=True)[cols]
+    h.to_csv(HIST, index=False)
+    return h
+
+
+def add_flags(d, hist, today):
+    """Compare each of today's changes with past changes for the SAME state and lead (days ahead)."""
+    hist = hist[hist.snap_date < today.isoformat()]
+    rows = []
+    for r in d.itertuples():
+        lead = (pd.Timestamp(r.day) - pd.Timestamp(today)).days
+        h = hist[(hist.region == r.region) & (hist.lead == lead)].delta.dropna()
+        n, z, flag, med, p5, p95 = len(h), np.nan, False, np.nan, np.nan, np.nan
+        if n >= MIN_N:
+            med = h.median()
+            scale = 1.4826 * (h - med).abs().median() or h.std()   # robust spread, falls back to std
+            p5, p95 = h.quantile(.05), h.quantile(.95)
+            if scale and scale > 0:
+                z = (r.delta - med) / scale
+                flag = bool(abs(z) > FLAG_Z)
+        rows.append((lead, n, med, p5, p95, z, flag))
+    d = d.copy()
+    d[["lead", "base_n", "base_median", "base_p5", "base_p95", "z", "flag"]] = rows
+    return d
+
+
+def plot_delta(t, y, files):
+    # Like-for-like: only intervals present in BOTH snapshots, so the partial
+    # first day and the extra final day of 'today' cannot distort the maxima.
+    d = daily_changes(t, y)
+    if d is None:
+        print("No overlap between today and yest - skipping delta chart")
+        return
+    today = datetime.now(AEST).date()
+    d = add_flags(d, update_history(files, today), today)
+    d.round(2).to_csv(DATA / "daily_max_poe50.csv", index=False)
+    fl = {(r.region, r.day): bool(r.flag) for r in d.itertuples()}
     p = d.pivot(index="day", columns="region", values="delta")
     p = p[[st for st in TH if st in p.columns]]  # configured state order
+    days = list(p.index)
     p.index = [x.strftime("%a %d %b") for x in p.index]
     fig, ax = plt.subplots(figsize=(11, 5))
     p.plot.bar(ax=ax, width=.8)
-    for c in ax.containers:
-        ax.bar_label(c, fmt="%+.0f", fontsize=7, padding=2)
+    for c, st in zip(ax.containers, p.columns):
+        labs = [f"{v:+.0f}" + ("*" if fl.get((st, dy)) else "") for v, dy in zip(p[st], days)]
+        for tx, lb in zip(ax.bar_label(c, labels=labs, fontsize=7, padding=2), labs):
+            if lb.endswith("*"):
+                tx.set_color("red"); tx.set_fontweight("bold")
     ax.axhline(0, color="k", lw=.8)
     names = json.loads(META.read_text())
     lab = lambda n: datetime.strptime(PAT.search(n).group(1), "%Y%m%d%H%M%S").strftime("%a %d %b %H:%M")
@@ -223,11 +314,14 @@ def plot_delta(t, y):
                   f"minus forecast issued {lab(names['yest'])} AEST (yesterday)"),
            ylabel="MW (positive = forecast raised)", xlabel="")
     ax.tick_params(axis="x", rotation=30)
-    fig.tight_layout(); fig.savefig(CHARTS / "delta_demand.png", dpi=130); plt.close(fig)
+    n = int(d.base_n.max()) if len(d) else 0
+    fig.text(0.01, 0.01, f"* unusually large for that state and days-ahead (|robust z| > {FLAG_Z:g}, "
+             f"vs up to {n} past days; blank if < {MIN_N} days of history)", fontsize=7, color="dimgrey")
+    fig.tight_layout(rect=(0, 0.04, 1, 1)); fig.savefig(CHARTS / "delta_demand.png", dpi=130); plt.close(fig)
 
 
 if __name__ == "__main__":
-    sync()
+    files = sync()
     today, yest = load(DATA / "today.csv"), load(DATA / "yest.csv")
     plot_states(today)
-    plot_delta(today, yest)
+    plot_delta(today, yest, files)
