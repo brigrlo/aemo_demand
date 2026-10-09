@@ -2,7 +2,9 @@ name: Update AEMO demand charts
 
 on:
   schedule:
-    - cron: "0 20 * * *"
+    -   schedule:
+    - cron: "19 20 * * *"
+    - cron: "41 20 * * *"
   workflow_dispatch:
 
 permissions:
