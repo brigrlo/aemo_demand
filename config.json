@@ -2,7 +2,7 @@
   "base_url": "https://nemweb.com.au/Reports/Current/Operational_Demand/FORECAST_HH/",
   "snapshot_time_aest": "07:00",
   "interval_ending": true,
-  "thresholds": { "NSW1": 12000, "QLD1": 10500, "VIC1": 8500, "SA1": 3000 },
+  "thresholds": { "QLD1": 10500, "NSW1": 12000, "VIC1": 8500, "SA1": 3000 },
   "columns": {
     "region": null,
     "time": null,
