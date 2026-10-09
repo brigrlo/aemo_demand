@@ -9,6 +9,7 @@ from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
 import requests
@@ -126,6 +127,14 @@ def band(ax, g, color="grey", alpha=.25):
     ax.fill_between(g.time, lo, hi, color=color, alpha=alpha, lw=0)
 
 
+def fmt_days(ax, fig):
+    """One tick per day at midnight, labelled like 'Fri 09 Oct'."""
+    ax.xaxis.set_major_locator(mdates.DayLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%a %d %b"))
+    ax.grid(axis="x", ls=":", alpha=.4)
+    fig.autofmt_xdate(rotation=30, ha="right")
+
+
 def plot_states(t):
     CHARTS.mkdir(exist_ok=True)
     fig, ax = plt.subplots(figsize=(11, 5))
@@ -135,7 +144,7 @@ def plot_states(t):
         ax.axhline(TH[st], ls="--", lw=1, color=line.get_color(), alpha=.8)
     ax.set(title="Operational demand forecast, POE50 (band = POE10-POE90, dashed = threshold)",
            ylabel="MW")
-    ax.legend(); fig.autofmt_xdate(); fig.tight_layout()
+    ax.legend(); fmt_days(ax, fig); fig.tight_layout()
     fig.savefig(CHARTS / "all_states.png", dpi=130); plt.close(fig)
 
     for st, g in t.groupby("region"):
@@ -144,10 +153,20 @@ def plot_states(t):
         ax.plot(g.time, g.poe10, ls="--", lw=1, color="dimgrey", label="POE10")
         ax.plot(g.time, g.poe90, ls="--", lw=1, color="darkgrey", label="POE90")
         ax.plot(g.time, g.poe50, lw=1.8, label="POE50")
+        # Mark each AEST day's peak POE50 and label the time it occurs
+        gd = g.assign(day=aest_day(g["time"]))
+        gd = gd[gd.groupby("day")["poe50"].transform("size") >= 24]  # skip sliver days
+        peaks = gd.loc[gd.groupby("day")["poe50"].idxmax()]
+        ax.scatter(peaks.time, peaks.poe50, s=18, color="black", zorder=5, label="Daily peak")
+        for _, r in peaks.iterrows():
+            ax.annotate(r.time.strftime("%H:%M"), (r.time, r.poe50), xytext=(0, 6),
+                        textcoords="offset points", ha="center", fontsize=8)
+        ax.margins(y=.12)
         ax.axhline(TH[st], color="red", ls="--", label=f"Threshold {TH[st]:,}")
         ax.fill_between(g.time, TH[st], g.poe50, where=g.poe50 > TH[st], color="red", alpha=.3)
-        ax.set(title=f"{st} operational demand forecast", ylabel="MW")
-        ax.legend(ncol=4, loc="upper right"); fig.autofmt_xdate(); fig.tight_layout()
+        ax.set_title(f"{st} operational demand forecast", pad=30)
+        ax.set_ylabel("MW")
+        ax.legend(ncol=5, loc="lower center", bbox_to_anchor=(0.5, 1.0), frameon=False); fmt_days(ax, fig); fig.tight_layout()
         fig.savefig(CHARTS / f"{st}.png", dpi=130); plt.close(fig)
 
 
