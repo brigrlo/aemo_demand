@@ -2,11 +2,15 @@ name: Update AEMO demand charts
 
 on:
   schedule:
-    - cron: "0 21 * * *"   # 21:00 UTC = 07:00 AEST (NEM time, no DST)
+    - cron: "0 21 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: update-demand
+  cancel-in-progress: false
 
 jobs:
   update:
@@ -24,6 +28,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@users.noreply.github.com"
           git add data charts
-          git diff --staged --quiet || git commit -m "Update $(date -u +%F)"
-          git pull --rebase origin main
+          git diff --staged --quiet && exit 0
+          git commit -m "Update $(date -u +%F)"
+          git pull --rebase -X theirs origin main
           git push
