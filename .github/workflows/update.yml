@@ -1,0 +1,28 @@
+name: Update AEMO demand charts
+
+on:
+  schedule:
+    - cron: "0 21 * * *"   # 21:00 UTC = 07:00 AEST (NEM time, no DST)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python scripts/update.py
+      - name: Commit results
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add data charts
+          git diff --staged --quiet || git commit -m "Update $(date -u +%F)"
+          git push
