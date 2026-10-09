@@ -170,7 +170,11 @@ def plot_delta(t, y):
     for c in ax.containers:
         ax.bar_label(c, fmt="%+.0f", fontsize=7, padding=2)
     ax.axhline(0, color="k", lw=.8)
-    ax.set(title="Change in daily max POE50 forecast: today's vs yesterday's (MW)",
+    names = json.loads(META.read_text())
+    lab = lambda n: datetime.strptime(PAT.search(n).group(1), "%Y%m%d%H%M%S").strftime("%a %d %b %H:%M")
+    ax.set(title=("Change in daily max POE50 forecast (MW)\n"
+                  f"Forecast issued {lab(names['today'])} AEST (today) "
+                  f"minus forecast issued {lab(names['yest'])} AEST (yesterday)"),
            ylabel="MW (positive = forecast raised)", xlabel="")
     ax.tick_params(axis="x", rotation=30)
     fig.tight_layout(); fig.savefig(CHARTS / "delta_demand.png", dpi=130); plt.close(fig)
