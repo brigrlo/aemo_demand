@@ -23,6 +23,7 @@ CFG = json.loads((ROOT / "config.json").read_text())
 TH = CFG["thresholds"]
 FLAG_Z = CFG.get("flag_z", 2.0)          # |robust z| above this is flagged
 MIN_N = CFG.get("min_history_days", 15)  # baseline days needed per state and lead
+WINDOW = CFG.get("history_window_days", 90)  # rolling baseline length in days
 AEST = timezone(timedelta(hours=10))  # NEM time: fixed UTC+10, no DST
 HDR = {"User-Agent": "Mozilla/5.0 (demand-dashboard)"}
 PAT = re.compile(r"PUBLIC_FORECAST_OPERATIONAL_DEMAND_HH_\d{12}_(\d{14})\.zip")
@@ -246,7 +247,8 @@ def update_history(files, today):
     else:
         h = pd.DataFrame(columns=cols)
     have = set(h.snap_date)
-    new, d = [], min(files.values()).date() + timedelta(days=1)
+    start = max(min(files.values()).date() + timedelta(days=1), today - timedelta(days=WINDOW))
+    new, d = [], start
     while d <= today:
         if d.isoformat() not in have:
             a, b = try_pick(files, d), try_pick(files, d - timedelta(days=1))
@@ -259,6 +261,7 @@ def update_history(files, today):
                     new.append(ch[cols])
         d += timedelta(days=1)
     h = pd.concat([h] + new, ignore_index=True)[cols]
+    h = h[h.snap_date >= (today - timedelta(days=WINDOW)).isoformat()]  # rolling window
     h.to_csv(HIST, index=False)
     return h
 
@@ -315,8 +318,8 @@ def plot_delta(t, y, files):
            ylabel="MW (positive = forecast raised)", xlabel="")
     ax.tick_params(axis="x", rotation=30)
     n = int(d.base_n.max()) if len(d) else 0
-    fig.text(0.01, 0.01, f"* unusually large for that state and days-ahead (|robust z| > {FLAG_Z:g}, "
-             f"vs up to {n} past days; blank if < {MIN_N} days of history)", fontsize=7, color="dimgrey")
+    fig.text(0.01, 0.01, f"* unusually large for that state and days-ahead "
+             f"(compared to past 60-90 days)", fontsize=7, color="dimgrey")
     fig.tight_layout(rect=(0, 0.04, 1, 1)); fig.savefig(CHARTS / "delta_demand.png", dpi=130); plt.close(fig)
 
 
