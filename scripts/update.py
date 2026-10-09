@@ -135,6 +135,18 @@ def ordered(t):
             yield st, g
 
 
+def label_neg_min(ax, g):
+    """Mark each AEST day's minimum POE50 with time + value, only if negative."""
+    gd = g.assign(day=aest_day(g["time"]))
+    gd = gd[gd.groupby("day")["poe50"].transform("size") >= 24]  # skip sliver days
+    lows = gd.loc[gd.groupby("day")["poe50"].idxmin()]
+    lows = lows[lows.poe50 < 0]
+    ax.scatter(lows.time, lows.poe50, s=18, color="black", zorder=5)
+    for _, r in lows.iterrows():
+        ax.annotate(f"{r.time:%H:%M}\n{r.poe50:,.0f} MW", (r.time, r.poe50), xytext=(0, -6),
+                    textcoords="offset points", ha="center", va="top", fontsize=8)
+
+
 def fmt_days(ax, fig):
     """One tick per day at midnight, labelled like 'Fri 09 Oct'."""
     ax.xaxis.set_major_locator(mdates.DayLocator())
@@ -149,6 +161,8 @@ def plot_states(t):
     for st, g in ordered(t):
         (line,) = ax.plot(g.time, g.poe50, label=f"{st} POE50")
         band(ax, g, color=line.get_color(), alpha=.12)
+        if st == "SA1":
+            label_neg_min(ax, g)
         if TH[st] is not None:
             ax.axhline(TH[st], ls="--", lw=1, color=line.get_color(), alpha=.8)
     ax.set(title="Operational demand forecast, POE50 (band = POE10-POE90, dashed = threshold)",
@@ -170,6 +184,8 @@ def plot_states(t):
         for _, r in peaks.iterrows():
             ax.annotate(r.time.strftime("%H:%M"), (r.time, r.poe50), xytext=(0, 6),
                         textcoords="offset points", ha="center", fontsize=8)
+        if st == "SA1":
+            label_neg_min(ax, g)
         ax.margins(y=.12)
         if TH[st] is not None:
             ax.axhline(TH[st], color="red", ls="--", label=f"Threshold {TH[st]:,}")
