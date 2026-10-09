@@ -141,7 +141,8 @@ def plot_states(t):
     for st, g in t.groupby("region"):
         (line,) = ax.plot(g.time, g.poe50, label=f"{st} POE50")
         band(ax, g, color=line.get_color(), alpha=.12)
-        ax.axhline(TH[st], ls="--", lw=1, color=line.get_color(), alpha=.8)
+        if TH[st] is not None:
+            ax.axhline(TH[st], ls="--", lw=1, color=line.get_color(), alpha=.8)
     ax.set(title="Operational demand forecast, POE50 (band = POE10-POE90, dashed = threshold)",
            ylabel="MW")
     ax.legend(); fmt_days(ax, fig); fig.tight_layout()
@@ -162,8 +163,9 @@ def plot_states(t):
             ax.annotate(r.time.strftime("%H:%M"), (r.time, r.poe50), xytext=(0, 6),
                         textcoords="offset points", ha="center", fontsize=8)
         ax.margins(y=.12)
-        ax.axhline(TH[st], color="red", ls="--", label=f"Threshold {TH[st]:,}")
-        ax.fill_between(g.time, TH[st], g.poe50, where=g.poe50 > TH[st], color="red", alpha=.3)
+        if TH[st] is not None:
+            ax.axhline(TH[st], color="red", ls="--", label=f"Threshold {TH[st]:,}")
+            ax.fill_between(g.time, TH[st], g.poe50, where=g.poe50 > TH[st], color="red", alpha=.3)
         ax.set_title(f"{st} operational demand forecast", pad=30)
         ax.set_ylabel("MW")
         ax.legend(ncol=5, loc="lower center", bbox_to_anchor=(0.5, 1.0), frameon=False); fmt_days(ax, fig); fig.tight_layout()
