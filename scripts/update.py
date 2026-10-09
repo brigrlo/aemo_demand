@@ -127,6 +127,14 @@ def band(ax, g, color="grey", alpha=.25):
     ax.fill_between(g.time, lo, hi, color=color, alpha=alpha, lw=0)
 
 
+def ordered(t):
+    """Yield (region, rows) in the order set by config.json thresholds."""
+    for st in TH:
+        g = t[t.region == st]
+        if not g.empty:
+            yield st, g
+
+
 def fmt_days(ax, fig):
     """One tick per day at midnight, labelled like 'Fri 09 Oct'."""
     ax.xaxis.set_major_locator(mdates.DayLocator())
@@ -138,7 +146,7 @@ def fmt_days(ax, fig):
 def plot_states(t):
     CHARTS.mkdir(exist_ok=True)
     fig, ax = plt.subplots(figsize=(11, 5))
-    for st, g in t.groupby("region"):
+    for st, g in ordered(t):
         (line,) = ax.plot(g.time, g.poe50, label=f"{st} POE50")
         band(ax, g, color=line.get_color(), alpha=.12)
         if TH[st] is not None:
@@ -148,7 +156,7 @@ def plot_states(t):
     ax.legend(); fmt_days(ax, fig); fig.tight_layout()
     fig.savefig(CHARTS / "all_states.png", dpi=130); plt.close(fig)
 
-    for st, g in t.groupby("region"):
+    for st, g in ordered(t):
         fig, ax = plt.subplots(figsize=(11, 4.2))
         band(ax, g)
         ax.plot(g.time, g.poe10, ls="--", lw=1, color="dimgrey", label="POE10")
@@ -185,6 +193,7 @@ def plot_delta(t, y):
     d["delta"] = d.today_max - d.yest_max
     d.round(0).to_csv(DATA / "daily_max_poe50.csv", index=False)
     p = d.pivot(index="day", columns="region", values="delta")
+    p = p[[st for st in TH if st in p.columns]]  # configured state order
     p.index = [x.strftime("%a %d %b") for x in p.index]
     fig, ax = plt.subplots(figsize=(11, 5))
     p.plot.bar(ax=ax, width=.8)
