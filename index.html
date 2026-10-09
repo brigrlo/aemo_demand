@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEMO operational demand forecast</title>
+<style>
+  :root { --bg:#fff; --fg:#1b1f24; --muted:#59636e; --card:#f6f8fa; --line:#d0d7de; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --card:#161b22; --line:#30363d; }
+    img { background:#fff; }
+  }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  h1 { font-size:1.4rem; margin:.2em 0; }
+  h2 { font-size:1.05rem; margin:0 0 8px; }
+  #stamp { color:var(--muted); font-size:.9rem; margin:0 0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px;
+          padding:12px; margin-bottom:16px; }
+  .grid { display:grid; gap:16px; grid-template-columns:1fr; }
+  @media (min-width: 900px) { .grid { grid-template-columns:1fr 1fr; } }
+  img { width:100%; height:auto; border-radius:6px; display:block; }
+  .note { color:var(--muted); font-size:.85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>AEMO operational demand forecast</h1>
+  <p id="stamp">Loading&hellip;</p>
+
+  <section class="card">
+    <h2>Change in daily max POE50 (today vs yesterday)</h2>
+    <a href="charts/delta_demand.png"><img data-src="charts/delta_demand.png" alt="Delta demand chart"></a>
+  </section>
+
+  <section class="card">
+    <h2>All states</h2>
+    <a href="charts/all_states.png"><img data-src="charts/all_states.png" alt="All states chart"></a>
+  </section>
+
+  <div class="grid">
+    <section class="card"><h2>NSW1</h2>
+      <a href="charts/NSW1.png"><img data-src="charts/NSW1.png" alt="NSW1 chart"></a></section>
+    <section class="card"><h2>QLD1</h2>
+      <a href="charts/QLD1.png"><img data-src="charts/QLD1.png" alt="QLD1 chart"></a></section>
+    <section class="card"><h2>VIC1</h2>
+      <a href="charts/VIC1.png"><img data-src="charts/VIC1.png" alt="VIC1 chart"></a></section>
+  </div>
+
+  <p class="note">Source: AEMO NEMweb operational demand forecast (FORECAST_HH). Tap a chart to open it full size.</p>
+</main>
+<script>
+  const imgs = document.querySelectorAll("img[data-src]");
+  const load = v => imgs.forEach(i => i.src = i.dataset.src + (v ? "?v=" + v : ""));
+  const fmt = n => {
+    const s = n.match(/_(\d{14})\.zip/)[1];
+    return `${s.slice(6,8)}/${s.slice(4,6)}/${s.slice(0,4)} ${s.slice(8,10)}:${s.slice(10,12)}`;
+  };
+  fetch("data/meta.json", { cache: "no-store" })
+    .then(r => r.json())
+    .then(m => {
+      document.getElementById("stamp").textContent =
+        `Today's forecast issued ${fmt(m.today)} AEST \u00b7 Yesterday's issued ${fmt(m.yest)} AEST`;
+      load(m.today + m.yest);   // cache-bust so new charts show straight after each run
+    })
+    .catch(() => { document.getElementById("stamp").textContent = ""; load(""); });
+</script>
+</body>
+</html>
