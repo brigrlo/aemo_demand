@@ -4,6 +4,7 @@
   "interval_ending": true,
   "flag_z": 2.5,
   "min_history_days": 15,
+  "history_window_days": 90,
   "thresholds": { "QLD1": 9750, "NSW1": 11500, "VIC1": 8500, "SA1": 3000 },
   "columns": {
     "region": null,
