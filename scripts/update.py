@@ -1,4 +1,4 @@
-"""Pick the ~6AM AEST forecast snapshots for today and yesterday from NEMweb
+"""Pick the ~7AM AEST forecast snapshots for today and yesterday from NEMweb
 (FORECAST_HH), then draw demand charts and a day-by-day forecast-change chart.
 
 No file rotation is needed: both snapshots are chosen by name from the archive.
@@ -25,6 +25,15 @@ TH = CFG["thresholds"]
 FLAG_Z = CFG.get("flag_z", 2.0)          # |robust z| above this is flagged
 MIN_N = CFG.get("min_history_days", 15)  # baseline days needed per state and lead
 WINDOW = CFG.get("history_window_days", 90)  # rolling baseline length in days
+_W = CFG.get("watchlist", {})                    # all optional, defaults shown
+# Every size test is relative to the state, so big-demand states aren't over-represented:
+W_BAND_PCT = _W.get("band_change_pct", 15)               # POE10-POE90 spread change that counts, %
+W_BAND_FLOOR_PCT = _W.get("band_change_min_pct_of_peak", 0.3)  # ...and at least this % of the peak demand
+W_PEAK_MIN = _W.get("peak_shift_min_minutes", 60)        # daily-peak time move that counts
+W_PEAK_PCT = _W.get("peak_shift_min_pct", 0.5)           # POE50 must differ this % of peak between the two peak times
+W_STREAK_N = _W.get("streak_min_days", 3)                # consecutive same-direction revisions
+W_STREAK_Z = _W.get("streak_min_z", 1.0)                 # each must be this many typical spreads from that state's normal
+W_MAX_ROWS = _W.get("max_rows", 8)
 AEST = timezone(timedelta(hours=10))  # NEM time: fixed UTC+10, no DST
 # Snapshot cutoff is a wall-clock time in Sydney (follows daylight saving). File names and
 # issue times from NEMweb are NEM time (AEST), so cutoffs are converted to AEST.
@@ -308,6 +317,89 @@ def add_flags(d, hist, today):
     return d
 
 
+# ---------- watchlist: spread, peak timing and revision streaks ----------
+def peak_info(t, y):
+    """Per state and AEST day (like-for-like intervals only): the time of the daily POE50 peak
+    and the POE10-POE90 spread at that peak, for each of today's and yesterday's snapshots."""
+    m = t.merge(y, on=["region", "time"], suffixes=("_t", "_y"))
+    if m.empty:
+        return pd.DataFrame()
+    m["day"] = aest_day(m["time"])
+    out = []
+    for (reg, day), g in m.groupby(["region", "day"]):
+        if len(g) < 24:  # skip sliver days
+            continue
+        it, iy = g.poe50_t.idxmax(), g.poe50_y.idxmax()
+        out.append(dict(
+            region=reg, day=day, peak_t=g.loc[it, "time"], peak_y=g.loc[iy, "time"],
+            width_t=abs(g.loc[it, "poe10_t"] - g.loc[it, "poe90_t"]),
+            width_y=abs(g.loc[iy, "poe10_y"] - g.loc[iy, "poe90_y"]),
+            drop_t=g.loc[it, "poe50_t"] - g.loc[iy, "poe50_t"],  # today's peak vs today's value at yesterday's peak time
+            level=g.loc[it, "poe50_t"]))
+    return pd.DataFrame(out)
+
+
+def revision_streaks(hist, today):
+    """Consecutive daily revisions in the same direction for each (state, target day), ending today.
+    A revision counts only if it is at least W_STREAK_Z typical spreads away from that state's normal
+    change at that many days ahead, so known biases and naturally bigger swings don't trigger it."""
+    def spread(x):
+        med = x.median()
+        return med, (1.4826 * (x - med).abs().median() or x.std())
+    stats = {k: spread(g.delta) for k, g in hist.groupby(["region", "lead"]) if len(g) >= MIN_N}
+    res = {}
+    for (reg, day), g in hist.groupby(["region", "day"]):
+        g = g.sort_values("snap_date", ascending=False)
+        if g.snap_date.iloc[0] != today.isoformat():
+            continue
+        n, tot, sign, prev = 0, 0.0, 0, None
+        for r in g.itertuples():
+            dt, (med, sc) = pd.Timestamp(r.snap_date), stats.get((reg, r.lead), (0, 0))
+            if not sc or sc != sc or (prev is not None and (prev - dt).days != 1):
+                break
+            z = (r.delta - med) / sc
+            if abs(z) < W_STREAK_Z:
+                break
+            sg = 1 if z > 0 else -1
+            if n == 0:
+                sign = sg
+            elif sg != sign:
+                break
+            n, tot, prev = n + 1, tot + r.delta, dt
+        res[(reg, str(day))] = (n, tot, sign)
+    return res
+
+
+def build_watchlist(t, y, hist, today):
+    pk, st = peak_info(t, y), revision_streaks(hist, today)
+    rows = []
+    for r in pk.itertuples():
+        chips = []
+        dw = r.width_t - r.width_y
+        pct = dw / r.width_y * 100 if r.width_y > 0 else 0
+        if abs(pct) >= W_BAND_PCT and abs(dw) >= W_BAND_FLOOR_PCT / 100 * r.level:
+            chips.append({"kind": "band", "dir": "up" if dw > 0 else "down",
+                          "text": f"Uncertainty {'▲' if dw > 0 else '▼'} {abs(pct):.0f}%"})
+        shift = (r.peak_t - r.peak_y).total_seconds() / 60
+        if abs(shift) >= W_PEAK_MIN and r.drop_t >= W_PEAK_PCT / 100 * r.level:
+            chips.append({"kind": "peak", "dir": "later" if shift > 0 else "earlier",
+                          "text": f"Peak {r.peak_y:%H:%M} → {r.peak_t:%H:%M}"})
+        n, tot, sg = st.get((r.region, str(r.day)), (0, 0.0, 0))
+        if n >= W_STREAK_N:
+            chips.append({"kind": "streak", "dir": "up" if sg > 0 else "down",
+                          "text": f"Revised {'↑' if sg > 0 else '↓'} {n} days, {tot:+,.0f} MW"})
+        if chips:
+            rows.append({"region": r.region, "day": str(r.day), "day_label": pd.Timestamp(r.day).strftime("%a %d %b"),
+                         "lead": (pd.Timestamp(r.day) - pd.Timestamp(today)).days, "chips": chips})
+    omitted = max(0, len(rows) - W_MAX_ROWS)
+    if omitted:  # keep the busiest rows, earliest first
+        rows = sorted(rows, key=lambda x: (-len(x["chips"]), x["day"]))[:W_MAX_ROWS]
+    order = {k: i for i, k in enumerate(TH)}
+    rows.sort(key=lambda x: (x["day"], order.get(x["region"], 99)))
+    (DATA / "watchlist.json").write_text(json.dumps({"rows": rows, "omitted": omitted}, indent=1, ensure_ascii=False))
+    return rows
+
+
 def plot_delta(t, y, files):
     # Like-for-like: only intervals present in BOTH snapshots, so the partial
     # first day and the extra final day of 'today' cannot distort the maxima.
@@ -316,7 +408,9 @@ def plot_delta(t, y, files):
         print("No overlap between today and yest - skipping delta chart")
         return
     today = local_today()
-    d = add_flags(d, update_history(files, today), today)
+    hist = update_history(files, today)
+    d = add_flags(d, hist, today)
+    build_watchlist(t, y, hist, today)
     d.round(2).to_csv(DATA / "daily_max_poe50.csv", index=False)
     fl = {(r.region, r.day): bool(r.flag) for r in d.itertuples()}
     p = d.pivot(index="day", columns="region", values="delta")
