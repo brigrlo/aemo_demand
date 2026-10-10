@@ -5,6 +5,15 @@
   "flag_z": 2.5,
   "min_history_days": 15,
   "history_window_days": 90,
+  "watchlist": {
+    "band_change_pct": 15,
+    "band_change_min_pct_of_peak": 0.3,
+    "peak_shift_min_minutes": 60,
+    "peak_shift_min_pct": 0.5,
+    "streak_min_days": 3,
+    "streak_min_z": 1.0,
+    "max_rows": 8
+  },
   "thresholds": { "QLD1": 9750, "NSW1": 11500, "VIC1": 8500, "SA1": 3000 },
   "columns": {
     "region": null,
