@@ -22,6 +22,15 @@
   @media (min-width: 900px) { .grid { grid-template-columns:1fr 1fr; } }
   img { width:100%; height:auto; border-radius:6px; display:block; }
   .note { color:var(--muted); font-size:.85rem; }
+  .row { display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; padding:8px 0; border-top:1px solid var(--line); }
+  .row:first-child { border-top:0; }
+  .who { font-weight:600; min-width:9.5em; }
+  .chip { border-radius:999px; padding:2px 10px; font-size:.82rem; border:1px solid var(--line); white-space:nowrap; }
+  .band-up   { background:rgba(217,119,6,.15);  border-color:rgba(217,119,6,.5); }
+  .band-down { background:rgba(13,148,136,.15); border-color:rgba(13,148,136,.5); }
+  .peak-later, .peak-earlier { background:rgba(124,58,237,.14); border-color:rgba(124,58,237,.5); }
+  .streak-up   { background:rgba(220,38,38,.14); border-color:rgba(220,38,38,.5); }
+  .streak-down { background:rgba(37,99,235,.14); border-color:rgba(37,99,235,.5); }
 </style>
 </head>
 <body>
@@ -32,6 +41,14 @@
   <section class="card">
     <h2>Change in daily max POE50 (today vs yesterday)</h2>
     <a href="charts/delta_demand.png"><img data-src="charts/delta_demand.png" alt="Delta demand chart"></a>
+  </section>
+
+  <section class="card">
+    <h2>Watchlist</h2>
+    <div id="watch">Loading&hellip;</div>
+    <p class="note"><b>Uncertainty</b>: width of the 80% range (POE10&ndash;POE90) at the daily peak, vs yesterday.
+      <b>Peak</b>: the daily peak has moved to a different time.
+      <b>Revised</b>: forecast moved the same way on consecutive days.</p>
   </section>
 
   <section class="card">
@@ -59,14 +76,28 @@
     const s = n.match(/_(\d{14})\.zip/)[1];
     return `${s.slice(6,8)}/${s.slice(4,6)}/${s.slice(0,4)} ${s.slice(8,10)}:${s.slice(10,12)}`;
   };
+  const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const watch = document.getElementById("watch");
+  const renderWatch = w => {
+    if (!w.rows.length) { watch.textContent = "Nothing notable today."; return; }
+    watch.innerHTML = w.rows.map(r =>
+      `<div class="row"><span class="who">${esc(r.day_label)} &middot; ${esc(r.region)}</span>` +
+      r.chips.map(c => `<span class="chip ${esc(c.kind)}-${esc(c.dir)}">${esc(c.text)}</span>`).join("") +
+      `</div>`).join("") +
+      (w.omitted ? `<p class="note">${w.omitted} more not shown.</p>` : "");
+  };
   fetch("data/meta.json", { cache: "no-store" })
     .then(r => r.json())
     .then(m => {
       document.getElementById("stamp").textContent =
         `Today's forecast issued ${fmt(m.today)} AEST \u00b7 Yesterday's issued ${fmt(m.yest)} AEST`;
-      load(m.today + m.yest);   // cache-bust so new charts show straight after each run
+      const v = m.today + m.yest;
+      load(v);   // cache-bust so new charts show straight after each run
+      fetch("data/watchlist.json?v=" + v, { cache: "no-store" })
+        .then(r => r.json()).then(renderWatch)
+        .catch(() => { watch.textContent = "Watchlist unavailable."; });
     })
-    .catch(() => { document.getElementById("stamp").textContent = ""; load(""); });
+    .catch(() => { document.getElementById("stamp").textContent = ""; load(""); watch.textContent = "Watchlist unavailable."; });
 </script>
 </body>
 </html>
