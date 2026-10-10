@@ -1,0 +1,44 @@
+{
+ "rows": [
+  {
+   "region": "VIC1",
+   "day": "2026-10-11",
+   "day_label": "Sun 11 Oct",
+   "lead": 0,
+   "chips": [
+    {
+     "kind": "band",
+     "dir": "up",
+     "text": "Uncertainty ▲ 38%"
+    }
+   ]
+  },
+  {
+   "region": "NSW1",
+   "day": "2026-10-16",
+   "day_label": "Fri 16 Oct",
+   "lead": 5,
+   "chips": [
+    {
+     "kind": "peak",
+     "dir": "later",
+     "text": "Peak 18:00 → 19:00"
+    }
+   ]
+  },
+  {
+   "region": "SA1",
+   "day": "2026-10-18",
+   "day_label": "Sun 18 Oct",
+   "lead": 7,
+   "chips": [
+    {
+     "kind": "band",
+     "dir": "up",
+     "text": "Uncertainty ▲ 31%"
+    }
+   ]
+  }
+ ],
+ "omitted": 0
+}
