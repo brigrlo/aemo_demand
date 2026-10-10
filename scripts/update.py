@@ -6,6 +6,7 @@ No file rotation is needed: both snapshots are chosen by name from the archive.
 import csv, io, json, re, sys, tempfile, zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import matplotlib
 matplotlib.use("Agg")
@@ -25,6 +26,25 @@ FLAG_Z = CFG.get("flag_z", 2.0)          # |robust z| above this is flagged
 MIN_N = CFG.get("min_history_days", 15)  # baseline days needed per state and lead
 WINDOW = CFG.get("history_window_days", 90)  # rolling baseline length in days
 AEST = timezone(timedelta(hours=10))  # NEM time: fixed UTC+10, no DST
+# Snapshot cutoff is a wall-clock time in Sydney (follows daylight saving). File names and
+# issue times from NEMweb are NEM time (AEST), so cutoffs are converted to AEST.
+if "snapshot_time_local" in CFG:
+    SNAP_TIME, SNAP_TZ = CFG["snapshot_time_local"], CFG.get("snapshot_tz", "Australia/Sydney")
+else:  # older config: fixed NEM time, same behaviour as before
+    SNAP_TIME, SNAP_TZ = CFG["snapshot_time_aest"], "Australia/Brisbane"
+SYD = ZoneInfo(SNAP_TZ)
+SNAP_KEY = f"{SNAP_TIME} {SNAP_TZ}"
+
+
+def cutoff_for(day):
+    hh, mm = map(int, SNAP_TIME.split(":"))
+    local = datetime(day.year, day.month, day.day, hh, mm, tzinfo=SYD)
+    return local.astimezone(AEST).replace(tzinfo=None)
+
+
+def local_today():
+    return datetime.now(SYD).date()
+
 HDR = {"User-Agent": "Mozilla/5.0 (demand-dashboard)"}
 PAT = re.compile(r"PUBLIC_FORECAST_OPERATIONAL_DEMAND_HH_\d{12}_(\d{14})\.zip")
 
@@ -42,8 +62,7 @@ def list_files():
 
 
 def pick(files, day):
-    hh, mm = map(int, CFG["snapshot_time_aest"].split(":"))
-    cutoff = datetime(day.year, day.month, day.day, hh, mm)
+    cutoff = cutoff_for(day)
     ok = {n: t for n, t in files.items() if t <= cutoff}
     if not ok:
         sys.exit(f"No snapshot issued on/before {cutoff} (archive too short?)")
@@ -62,7 +81,7 @@ def fetch(name, dest):
 
 def sync():
     DATA.mkdir(exist_ok=True)
-    today = datetime.now(AEST).date()
+    today = local_today()
     files = list_files()
     want = {"today": pick(files, today), "yest": pick(files, today - timedelta(days=1))}
     have = json.loads(META.read_text()) if META.exists() else {}
@@ -188,11 +207,14 @@ def plot_states(t):
         peaks = gd.loc[gd.groupby("day")["poe50"].idxmax()]
         ax.scatter(peaks.time, peaks.poe50, s=18, color="black", zorder=5, label="Daily peak")
         for _, r in peaks.iterrows():
-            ax.annotate(r.time.strftime("%H:%M"), (r.time, r.poe50), xytext=(0, 6),
-                        textcoords="offset points", ha="center", fontsize=8)
+            over = TH[st] is not None and r.poe50 > TH[st]  # peak above threshold: add value, in red
+            txt = f"{r.time:%H:%M}\n{r.poe50:,.0f} MW" if over else r.time.strftime("%H:%M")
+            ax.annotate(txt, (r.time, r.poe50), xytext=(0, 6), textcoords="offset points",
+                        ha="center", va="bottom", fontsize=8,
+                        color="red" if over else "black", fontweight="bold" if over else "normal")
         if st == "SA1":
             label_neg_min(ax, g)
-        ax.margins(y=.12)
+        ax.margins(y=.15)
         if TH[st] is not None:
             ax.axhline(TH[st], color="red", ls="--", label=f"Threshold {TH[st]:,}")
             ax.fill_between(g.time, TH[st], g.poe50, where=g.poe50 > TH[st], color="red", alpha=.3)
@@ -219,8 +241,7 @@ def snap_frame(name):
 
 def try_pick(files, day):
     """Like pick(), but returns None instead of exiting when there is no suitable file."""
-    hh, mm = map(int, CFG["snapshot_time_aest"].split(":"))
-    cutoff = datetime(day.year, day.month, day.day, hh, mm)
+    cutoff = cutoff_for(day)
     ok = {n: t for n, t in files.items() if t <= cutoff and cutoff - t <= timedelta(hours=3)}
     return max(ok, key=ok.get) if ok else None
 
@@ -239,7 +260,7 @@ def daily_changes(t, y):
 
 def update_history(files, today):
     """One row per (snapshot date, state, target day); only missing dates are downloaded."""
-    snap = CFG["snapshot_time_aest"]
+    snap = SNAP_KEY
     cols = ["snap", "snap_date", "region", "day", "lead", "today_max", "yest_max", "delta"]
     if HIST.exists():
         h = pd.read_csv(HIST, dtype={"snap": str})
@@ -294,7 +315,7 @@ def plot_delta(t, y, files):
     if d is None:
         print("No overlap between today and yest - skipping delta chart")
         return
-    today = datetime.now(AEST).date()
+    today = local_today()
     d = add_flags(d, update_history(files, today), today)
     d.round(2).to_csv(DATA / "daily_max_poe50.csv", index=False)
     fl = {(r.region, r.day): bool(r.flag) for r in d.itertuples()}
@@ -318,8 +339,8 @@ def plot_delta(t, y, files):
            ylabel="MW (positive = forecast raised)", xlabel="")
     ax.tick_params(axis="x", rotation=30)
     n = int(d.base_n.max()) if len(d) else 0
-    fig.text(0.01, 0.01, f"* unusually large for that state and days-ahead "
-             f"(compared to past 60-90 days)", fontsize=7, color="dimgrey")
+    fig.text(0.01, 0.01, f"* unusually large for that state and days-ahead (|robust z| > {FLAG_Z:g}, "
+             f"vs up to {n} past days; blank if < {MIN_N} days of history)", fontsize=7, color="dimgrey")
     fig.tight_layout(rect=(0, 0.04, 1, 1)); fig.savefig(CHARTS / "delta_demand.png", dpi=130); plt.close(fig)
 
 
