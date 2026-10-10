@@ -1,6 +1,6 @@
 {
   "base_url": "https://nemweb.com.au/Reports/Current/Operational_Demand/FORECAST_HH/",
-  "snapshot_time_aest": "06:00",
+  "snapshot_time_aest": "05:49",
   "interval_ending": true,
   "flag_z": 2.5,
   "min_history_days": 15,
