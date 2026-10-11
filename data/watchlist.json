@@ -15,19 +15,6 @@
   },
   {
    "region": "SA1",
-   "day": "2026-10-14",
-   "day_label": "Wed 14 Oct",
-   "lead": 3,
-   "chips": [
-    {
-     "kind": "band",
-     "dir": "down",
-     "text": "Uncertainty 10–16h ▼ 29%"
-    }
-   ]
-  },
-  {
-   "region": "SA1",
    "day": "2026-10-15",
    "day_label": "Thu 15 Oct",
    "lead": 4,
@@ -36,6 +23,19 @@
      "kind": "band",
      "dir": "down",
      "text": "Uncertainty 10–16h ▼ 74%"
+    }
+   ]
+  },
+  {
+   "region": "SA1",
+   "day": "2026-10-14",
+   "day_label": "Wed 14 Oct",
+   "lead": 3,
+   "chips": [
+    {
+     "kind": "band",
+     "dir": "down",
+     "text": "Uncertainty 10–16h ▼ 29%"
     }
    ]
   }
