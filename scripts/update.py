@@ -228,7 +228,13 @@ def plot_states(t):
         ax.margins(y=.15)
         if TH[st] is not None:
             ax.axhline(TH[st], color="red", ls="--", label=f"Threshold {TH[st]:,}")
-            ax.fill_between(g.time, TH[st], g.poe50, where=g.poe50 > TH[st], color="red", alpha=.3)
+            lo, hi = g[["poe10", "poe90"]].min(axis=1), g[["poe10", "poe90"]].max(axis=1)
+            floor = np.maximum(lo, TH[st])  # shade only inside the 80% band: never below the POE90 line
+            over = hi > TH[st]
+            # light red: the band wherever the high-demand case (POE10) is above the threshold
+            ax.fill_between(g.time, floor, hi, where=over, interpolate=True, color="red", alpha=.18, lw=0)
+            # darker red on top, all the way up to POE10, wherever POE50 is above the threshold
+            ax.fill_between(g.time, floor, hi, where=over & (g.poe50 > TH[st]), color="red", alpha=.3, lw=0)
         ax.set_title(f"{st} operational demand forecast", pad=30)
         ax.set_ylabel("MW")
         ax.legend(ncol=5, loc="lower center", bbox_to_anchor=(0.5, 1.0), frameon=False); fmt_days(ax, fig); fig.tight_layout()
