@@ -12,7 +12,9 @@
     "peak_shift_min_pct": 0.5,
     "streak_min_days": 3,
     "streak_min_z": 1.0,
-    "max_rows": 8
+    "max_rows": 8,
+    "min_states": ["SA1"],
+    "min_window": ["10:00", "16:00"]
   },
   "thresholds": { "QLD1": 9750, "NSW1": 11500, "VIC1": 8500, "SA1": 3000 },
   "columns": {
