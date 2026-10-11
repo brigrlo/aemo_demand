@@ -38,19 +38,6 @@
      "text": "Uncertainty 10–16h ▼ 74%"
     }
    ]
-  },
-  {
-   "region": "SA1",
-   "day": "2026-10-17",
-   "day_label": "Sat 17 Oct",
-   "lead": 6,
-   "chips": [
-    {
-     "kind": "band",
-     "dir": "up",
-     "text": "Uncertainty 10–16h ▲ 24%"
-    }
-   ]
   }
  ],
  "omitted": 0
