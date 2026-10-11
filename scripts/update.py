@@ -443,9 +443,7 @@ def build_watchlist(t, y, hist, today):
         rs = sorted((x for x in rows if x["region"] == reg), key=lambda x: (x["_rank"], x["day"]))
         kept += rs[:W_ROWS_PER_STATE]
         omitted += max(0, len(rs) - W_ROWS_PER_STATE)
-    rows = kept
-    order = {k: i for i, k in enumerate(TH)}
-    rows.sort(key=lambda x: (x["day"], order.get(x["region"], 99)))
+    rows = kept  # grouped by state in config order; within a state: highest peak first (SA1: lowest minimum first)
     for x in rows:
         x.pop("_rank")
     (DATA / "watchlist.json").write_text(json.dumps({"rows": rows, "omitted": omitted}, indent=1, ensure_ascii=False))
