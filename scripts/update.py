@@ -1,4 +1,4 @@
-"""Pick the ~7AM AEST forecast snapshots for today and yesterday from NEMweb
+"""Pick the ~6AM AEST forecast snapshots for today and yesterday from NEMweb
 (FORECAST_HH), then draw demand charts and a day-by-day forecast-change chart.
 
 No file rotation is needed: both snapshots are chosen by name from the archive.
