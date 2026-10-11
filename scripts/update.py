@@ -27,13 +27,13 @@ MIN_N = CFG.get("min_history_days", 15)  # baseline days needed per state and le
 WINDOW = CFG.get("history_window_days", 90)  # rolling baseline length in days
 _W = CFG.get("watchlist", {})                    # all optional, defaults shown
 # Every size test is relative to the state, so big-demand states aren't over-represented:
-W_BAND_PCT = _W.get("band_change_pct", 15)               # POE10-POE90 spread change that counts, %
+W_BAND_PCT = _W.get("band_change_pct", 25)               # POE10-POE90 spread change that counts, % (trial value)
 W_BAND_FLOOR_PCT = _W.get("band_change_min_pct_of_peak", 0.3)  # ...and at least this % of the peak demand
 W_PEAK_MIN = _W.get("peak_shift_min_minutes", 60)        # daily-peak time move that counts
 W_PEAK_PCT = _W.get("peak_shift_min_pct", 0.5)           # POE50 must differ this % of peak between the two peak times
 W_STREAK_N = _W.get("streak_min_days", 3)                # consecutive same-direction revisions
 W_STREAK_Z = _W.get("streak_min_z", 1.0)                 # each must be this many typical spreads from that state's normal
-W_MAX_ROWS = _W.get("max_rows", 8)
+W_ROWS_PER_STATE = _W.get("max_rows_per_state", 3)  # rows kept per state; the rest are counted as "not shown"
 W_MIN_STATES = _W.get("min_states", ["SA1"])    # states flagged ONLY on negative-minimum days (no peak flags)
 W_MIN_WINDOW = _W.get("min_window", ["10:00", "16:00"])  # hours (NEM time) used for those states' uncertainty flag
 AEST = timezone(timedelta(hours=10))  # NEM time: fixed UTC+10, no DST
@@ -435,12 +435,19 @@ def build_watchlist(t, y, hist, today):
                               "text": f"Revised {'↑' if sg > 0 else '↓'} {n} days, {tot:+,.0f} MW"})
         if chips:
             rows.append({"region": r.region, "day": str(r.day), "day_label": pd.Timestamp(r.day).strftime("%a %d %b"),
-                         "lead": (pd.Timestamp(r.day) - pd.Timestamp(today)).days, "chips": chips})
-    omitted = max(0, len(rows) - W_MAX_ROWS)
-    if omitted:  # keep the busiest rows, earliest first
-        rows = sorted(rows, key=lambda x: (-len(x["chips"]), x["day"]))[:W_MAX_ROWS]
+                         "lead": (pd.Timestamp(r.day) - pd.Timestamp(today)).days, "chips": chips,
+                         # which days to keep if a state has too many: highest peak demand, or lowest minimum for min states
+                         "_rank": r.min_t if r.region in W_MIN_STATES else -r.level})
+    omitted, kept = 0, []
+    for reg in TH:
+        rs = sorted((x for x in rows if x["region"] == reg), key=lambda x: (x["_rank"], x["day"]))
+        kept += rs[:W_ROWS_PER_STATE]
+        omitted += max(0, len(rs) - W_ROWS_PER_STATE)
+    rows = kept
     order = {k: i for i, k in enumerate(TH)}
     rows.sort(key=lambda x: (x["day"], order.get(x["region"], 99)))
+    for x in rows:
+        x.pop("_rank")
     (DATA / "watchlist.json").write_text(json.dumps({"rows": rows, "omitted": omitted}, indent=1, ensure_ascii=False))
     return rows
 
