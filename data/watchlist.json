@@ -14,28 +14,41 @@
    ]
   },
   {
-   "region": "NSW1",
-   "day": "2026-10-16",
-   "day_label": "Fri 16 Oct",
-   "lead": 5,
+   "region": "SA1",
+   "day": "2026-10-14",
+   "day_label": "Wed 14 Oct",
+   "lead": 3,
    "chips": [
     {
-     "kind": "peak",
-     "dir": "later",
-     "text": "Peak 18:00 → 19:00"
+     "kind": "band",
+     "dir": "down",
+     "text": "Uncertainty 10–16h ▼ 29%"
     }
    ]
   },
   {
    "region": "SA1",
-   "day": "2026-10-18",
-   "day_label": "Sun 18 Oct",
-   "lead": 7,
+   "day": "2026-10-15",
+   "day_label": "Thu 15 Oct",
+   "lead": 4,
+   "chips": [
+    {
+     "kind": "band",
+     "dir": "down",
+     "text": "Uncertainty 10–16h ▼ 74%"
+    }
+   ]
+  },
+  {
+   "region": "SA1",
+   "day": "2026-10-17",
+   "day_label": "Sat 17 Oct",
+   "lead": 6,
    "chips": [
     {
      "kind": "band",
      "dir": "up",
-     "text": "Uncertainty ▲ 31%"
+     "text": "Uncertainty 10–16h ▲ 24%"
     }
    ]
   }
