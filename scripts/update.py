@@ -1,4 +1,4 @@
-"""Pick the ~6AM AEST forecast snapshots for today and yesterday from NEMweb
+"""Pick the ~7AM AEST forecast snapshots for today and yesterday from NEMweb
 (FORECAST_HH), then draw demand charts and a day-by-day forecast-change chart.
 
 No file rotation is needed: both snapshots are chosen by name from the archive.
@@ -34,6 +34,8 @@ W_PEAK_PCT = _W.get("peak_shift_min_pct", 0.5)           # POE50 must differ thi
 W_STREAK_N = _W.get("streak_min_days", 3)                # consecutive same-direction revisions
 W_STREAK_Z = _W.get("streak_min_z", 1.0)                 # each must be this many typical spreads from that state's normal
 W_MAX_ROWS = _W.get("max_rows", 8)
+W_MIN_STATES = _W.get("min_states", ["SA1"])    # states flagged ONLY on negative-minimum days (no peak flags)
+W_MIN_WINDOW = _W.get("min_window", ["10:00", "16:00"])  # hours (NEM time) used for those states' uncertainty flag
 AEST = timezone(timedelta(hours=10))  # NEM time: fixed UTC+10, no DST
 # Snapshot cutoff is a wall-clock time in Sydney (follows daylight saving). File names and
 # issue times from NEMweb are NEM time (AEST), so cutoffs are converted to AEST.
@@ -256,24 +258,30 @@ def try_pick(files, day):
 
 
 def daily_changes(t, y):
-    """Daily max POE50, like-for-like, for two snapshots (columns: region, day, today_max, yest_max, delta)."""
+    """Daily max and min POE50, like-for-like, for two snapshots
+    (columns: region, day, today_max, yest_max, delta, today_min, yest_min, delta_min)."""
     m = t.merge(y, on=["region", "time"], suffixes=("_t", "_y"))
     if m.empty:
         return None
     m["day"] = aest_day(m["time"])
-    d = m.groupby(["region", "day"]).agg(today_max=("poe50_t", "max"),
-                                         yest_max=("poe50_y", "max")).reset_index()
+    d = m.groupby(["region", "day"]).agg(today_max=("poe50_t", "max"), yest_max=("poe50_y", "max"),
+                                         today_min=("poe50_t", "min"), yest_min=("poe50_y", "min")).reset_index()
     d["delta"] = d.today_max - d.yest_max
+    d["delta_min"] = d.today_min - d.yest_min
     return d
 
 
 def update_history(files, today):
     """One row per (snapshot date, state, target day); only missing dates are downloaded."""
     snap = SNAP_KEY
-    cols = ["snap", "snap_date", "region", "day", "lead", "today_max", "yest_max", "delta"]
+    cols = ["snap", "snap_date", "region", "day", "lead", "today_max", "yest_max", "delta",
+            "today_min", "yest_min", "delta_min"]
     if HIST.exists():
         h = pd.read_csv(HIST, dtype={"snap": str})
-        h = h[(h.snap == snap) & (h.snap_date != today.isoformat())]  # today is always refreshed
+        if set(cols) <= set(h.columns):
+            h = h[(h.snap == snap) & (h.snap_date != today.isoformat())]  # today is always refreshed
+        else:  # older file without the minimum columns: rebuild once
+            h = pd.DataFrame(columns=cols)
     else:
         h = pd.DataFrame(columns=cols)
     have = set(h.snap_date)
@@ -318,35 +326,52 @@ def add_flags(d, hist, today):
 
 
 # ---------- watchlist: spread, peak timing and revision streaks ----------
+def interval_start(ts):
+    return ts - pd.Timedelta(minutes=30) if CFG["interval_ending"] else ts
+
+
 def peak_info(t, y):
-    """Per state and AEST day (like-for-like intervals only): the time of the daily POE50 peak
-    and the POE10-POE90 spread at that peak, for each of today's and yesterday's snapshots."""
+    """Per state and AEST day (like-for-like intervals only), for today's and yesterday's snapshots:
+    the daily POE50 peak (time, POE10-POE90 spread there), today's highest POE10 and lowest POE50,
+    and the average POE10-POE90 spread inside the W_MIN_WINDOW hours."""
     m = t.merge(y, on=["region", "time"], suffixes=("_t", "_y"))
     if m.empty:
         return pd.DataFrame()
     m["day"] = aest_day(m["time"])
+    st = interval_start(m["time"])
+    m["tod"] = st.dt.hour * 60 + st.dt.minute
+    w0, w1 = (int(x[:2]) * 60 + int(x[3:5]) for x in W_MIN_WINDOW)
     out = []
     for (reg, day), g in m.groupby(["region", "day"]):
         if len(g) < 24:  # skip sliver days
             continue
         it, iy = g.poe50_t.idxmax(), g.poe50_y.idxmax()
+        gw = g[(g.tod >= w0) & (g.tod < w1)]
+        ok = len(gw) >= 6
         out.append(dict(
             region=reg, day=day, peak_t=g.loc[it, "time"], peak_y=g.loc[iy, "time"],
             width_t=abs(g.loc[it, "poe10_t"] - g.loc[it, "poe90_t"]),
             width_y=abs(g.loc[iy, "poe10_y"] - g.loc[iy, "poe90_y"]),
             drop_t=g.loc[it, "poe50_t"] - g.loc[iy, "poe50_t"],  # today's peak vs today's value at yesterday's peak time
-            level=g.loc[it, "poe50_t"]))
+            level=g.loc[it, "poe50_t"],
+            p10max_t=g.poe10_t.max(),                            # highest POE10 of the day (today's forecast)
+            min_t=g.poe50_t.min(),                               # lowest POE50 of the day (today's forecast)
+            win_t=(gw.poe10_t - gw.poe90_t).abs().mean() if ok else np.nan,
+            win_y=(gw.poe10_y - gw.poe90_y).abs().mean() if ok else np.nan))
     return pd.DataFrame(out)
 
 
-def revision_streaks(hist, today):
+def revision_streaks(hist, today, col="delta"):
     """Consecutive daily revisions in the same direction for each (state, target day), ending today.
     A revision counts only if it is at least W_STREAK_Z typical spreads away from that state's normal
-    change at that many days ahead, so known biases and naturally bigger swings don't trigger it."""
+    change at that many days ahead, so known biases and naturally bigger swings don't trigger it.
+    col: 'delta' (daily maximum) or 'delta_min' (daily minimum)."""
+    hist = hist.dropna(subset=[col])
+
     def spread(x):
         med = x.median()
         return med, (1.4826 * (x - med).abs().median() or x.std())
-    stats = {k: spread(g.delta) for k, g in hist.groupby(["region", "lead"]) if len(g) >= MIN_N}
+    stats = {k: spread(g[col]) for k, g in hist.groupby(["region", "lead"]) if len(g) >= MIN_N}
     res = {}
     for (reg, day), g in hist.groupby(["region", "day"]):
         g = g.sort_values("snap_date", ascending=False)
@@ -354,10 +379,11 @@ def revision_streaks(hist, today):
             continue
         n, tot, sign, prev = 0, 0.0, 0, None
         for r in g.itertuples():
+            val = getattr(r, col)
             dt, (med, sc) = pd.Timestamp(r.snap_date), stats.get((reg, r.lead), (0, 0))
             if not sc or sc != sc or (prev is not None and (prev - dt).days != 1):
                 break
-            z = (r.delta - med) / sc
+            z = (val - med) / sc
             if abs(z) < W_STREAK_Z:
                 break
             sg = 1 if z > 0 else -1
@@ -365,29 +391,48 @@ def revision_streaks(hist, today):
                 sign = sg
             elif sg != sign:
                 break
-            n, tot, prev = n + 1, tot + r.delta, dt
+            n, tot, prev = n + 1, tot + val, dt
         res[(reg, str(day))] = (n, tot, sign)
     return res
 
 
 def build_watchlist(t, y, hist, today):
-    pk, st = peak_info(t, y), revision_streaks(hist, today)
+    pk = peak_info(t, y)
+    st, stm = revision_streaks(hist, today), revision_streaks(hist, today, "delta_min")
+    hrs = lambda x: x[:2].lstrip("0") or "0"
+    win_label = f"{hrs(W_MIN_WINDOW[0])}\u2013{hrs(W_MIN_WINDOW[1])}h"
     rows = []
     for r in pk.itertuples():
         chips = []
-        dw = r.width_t - r.width_y
-        pct = dw / r.width_y * 100 if r.width_y > 0 else 0
-        if abs(pct) >= W_BAND_PCT and abs(dw) >= W_BAND_FLOOR_PCT / 100 * r.level:
-            chips.append({"kind": "band", "dir": "up" if dw > 0 else "down",
-                          "text": f"Uncertainty {'▲' if dw > 0 else '▼'} {abs(pct):.0f}%"})
-        shift = (r.peak_t - r.peak_y).total_seconds() / 60
-        if abs(shift) >= W_PEAK_MIN and r.drop_t >= W_PEAK_PCT / 100 * r.level:
-            chips.append({"kind": "peak", "dir": "later" if shift > 0 else "earlier",
-                          "text": f"Peak {r.peak_y:%H:%M} → {r.peak_t:%H:%M}"})
-        n, tot, sg = st.get((r.region, str(r.day)), (0, 0.0, 0))
-        if n >= W_STREAK_N:
-            chips.append({"kind": "streak", "dir": "up" if sg > 0 else "down",
-                          "text": f"Revised {'↑' if sg > 0 else '↓'} {n} days, {tot:+,.0f} MW"})
+        if r.region in W_MIN_STATES:
+            # e.g. SA1: no peak flags at all; only on days the minimum is forecast negative
+            if r.min_t < 0:
+                dw = r.win_t - r.win_y
+                pct = dw / r.win_y * 100 if r.win_y and r.win_y > 0 else 0
+                if abs(pct) >= W_BAND_PCT:
+                    chips.append({"kind": "band", "dir": "up" if dw > 0 else "down",
+                                  "text": f"Uncertainty {win_label} {'▲' if dw > 0 else '▼'} {abs(pct):.0f}%"})
+                nm, totm, sgm = stm.get((r.region, str(r.day)), (0, 0.0, 0))
+                if nm >= W_STREAK_N:
+                    chips.append({"kind": "streak", "dir": "up" if sgm > 0 else "down",
+                                  "text": f"Min revised {'↑' if sgm > 0 else '↓'} {nm} days, {totm:+,.0f} MW"})
+        else:
+            dw = r.width_t - r.width_y
+            pct = dw / r.width_y * 100 if r.width_y > 0 else 0
+            if abs(pct) >= W_BAND_PCT and abs(dw) >= W_BAND_FLOOR_PCT / 100 * r.level:
+                chips.append({"kind": "band", "dir": "up" if dw > 0 else "down",
+                              "text": f"Uncertainty {'▲' if dw > 0 else '▼'} {abs(pct):.0f}%"})
+            shift = (r.peak_t - r.peak_y).total_seconds() / 60
+            th = TH.get(r.region)
+            # peak timing matters only when the high-demand case (POE10) reaches the state's threshold
+            if (abs(shift) >= W_PEAK_MIN and r.drop_t >= W_PEAK_PCT / 100 * r.level
+                    and th is not None and r.p10max_t >= th):
+                chips.append({"kind": "peak", "dir": "later" if shift > 0 else "earlier",
+                              "text": f"Peak {r.peak_y:%H:%M} → {r.peak_t:%H:%M}"})
+            n, tot, sg = st.get((r.region, str(r.day)), (0, 0.0, 0))
+            if n >= W_STREAK_N:
+                chips.append({"kind": "streak", "dir": "up" if sg > 0 else "down",
+                              "text": f"Revised {'↑' if sg > 0 else '↓'} {n} days, {tot:+,.0f} MW"})
         if chips:
             rows.append({"region": r.region, "day": str(r.day), "day_label": pd.Timestamp(r.day).strftime("%a %d %b"),
                          "lead": (pd.Timestamp(r.day) - pd.Timestamp(today)).days, "chips": chips})
