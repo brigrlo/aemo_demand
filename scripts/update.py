@@ -191,11 +191,16 @@ def fmt_days(ax, fig):
     fig.autofmt_xdate(rotation=30, ha="right")
 
 
+def disp(code):
+    """Display name for a region code: NSW1 -> NSW, SA1 -> SA (data and config keep the AEMO codes)."""
+    return code[:-1] if code.endswith("1") else code
+
+
 def plot_states(t):
     CHARTS.mkdir(exist_ok=True)
     fig, ax = plt.subplots(figsize=(11, 5))
     for st, g in ordered(t):
-        (line,) = ax.plot(g.time, g.poe50, label=f"{st} POE50")
+        (line,) = ax.plot(g.time, g.poe50, label=f"{disp(st)} POE50")
         band(ax, g, color=line.get_color(), alpha=.12)
         if st == "SA1":
             label_neg_min(ax, g)
@@ -235,7 +240,7 @@ def plot_states(t):
             ax.fill_between(g.time, floor, hi, where=over, interpolate=True, color="red", alpha=.18, lw=0)
             # darker red on top, all the way up to POE10, wherever POE50 is above the threshold
             ax.fill_between(g.time, floor, hi, where=over & (g.poe50 > TH[st]), color="red", alpha=.3, lw=0)
-        ax.set_title(f"{st} operational demand forecast", pad=30)
+        ax.set_title(f"{disp(st)} operational demand forecast", pad=30)
         ax.set_ylabel("MW")
         ax.legend(ncol=5, loc="lower center", bbox_to_anchor=(0.5, 1.0), frameon=False); fmt_days(ax, fig); fig.tight_layout()
         fig.savefig(CHARTS / f"{st}.png", dpi=130); plt.close(fig)
@@ -318,6 +323,7 @@ def add_flags(d, hist, today):
         lead = (pd.Timestamp(r.day) - pd.Timestamp(today)).days
         h = hist[(hist.region == r.region) & (hist.lead == lead)].delta.dropna()
         n, z, flag, med, p5, p95 = len(h), np.nan, False, np.nan, np.nan, np.nan
+        scale, lo, hi = np.nan, np.nan, np.nan
         if n >= MIN_N:
             med = h.median()
             scale = 1.4826 * (h - med).abs().median() or h.std()   # robust spread, falls back to std
@@ -325,9 +331,10 @@ def add_flags(d, hist, today):
             if scale and scale > 0:
                 z = (r.delta - med) / scale
                 flag = bool(abs(z) > FLAG_Z)
-        rows.append((lead, n, med, p5, p95, z, flag))
+                lo, hi = med - FLAG_Z * scale, med + FLAG_Z * scale  # a change outside these MW limits gets the *
+        rows.append((lead, n, med, p5, p95, scale, lo, hi, z, flag))
     d = d.copy()
-    d[["lead", "base_n", "base_median", "base_p5", "base_p95", "z", "flag"]] = rows
+    d[["lead", "base_n", "base_median", "base_p5", "base_p95", "base_scale", "flag_low", "flag_high", "z", "flag"]] = rows
     return d
 
 
@@ -474,7 +481,7 @@ def plot_delta(t, y, files):
     days = list(p.index)
     p.index = [x.strftime("%a %d %b") for x in p.index]
     fig, ax = plt.subplots(figsize=(11, 5))
-    p.plot.bar(ax=ax, width=.8)
+    p.rename(columns=disp).plot.bar(ax=ax, width=.8)
     for c, st in zip(ax.containers, p.columns):
         labs = [f"{v:+.0f}" + ("*" if fl.get((st, dy)) else "") for v, dy in zip(p[st], days)]
         for tx, lb in zip(ax.bar_label(c, labels=labs, fontsize=7, padding=2), labs):
