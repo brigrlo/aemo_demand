@@ -497,7 +497,7 @@ def plot_delta(t, y, files):
     ax.tick_params(axis="x", rotation=30)
     n = int(d.base_n.max()) if len(d) else 0
     fig.text(0.01, 0.01, f"* unusually large for that state and days-ahead (|robust z| > {FLAG_Z:g}, "
-             f"vs up to {n} past days; blank if < {MIN_N} days of history)", fontsize=7, color="dimgrey")
+             f"vs up to {n} past days; not flagged if < {MIN_N} days of history)", fontsize=7, color="dimgrey")
     fig.tight_layout(rect=(0, 0.04, 1, 1)); fig.savefig(CHARTS / "delta_demand.png", dpi=130); plt.close(fig)
 
 
