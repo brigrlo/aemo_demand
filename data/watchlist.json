@@ -1,18 +1,4 @@
 {
- "rows": [
-  {
-   "region": "VIC1",
-   "day": "2026-10-19",
-   "day_label": "Mon 19 Oct",
-   "lead": 7,
-   "chips": [
-    {
-     "kind": "band",
-     "dir": "up",
-     "text": "Uncertainty ▲ 29%"
-    }
-   ]
-  }
- ],
+ "rows": [],
  "omitted": 0
 }
