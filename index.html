@@ -49,10 +49,10 @@
     <p class="note"><b>Uncertainty</b>: width of the 80% range (POE10&ndash;POE90) at the daily peak, vs yesterday.
       <b>Peak</b>: the daily peak has moved to a different time (shown only when POE10 reaches the state's threshold).
       <b>Revised</b>: forecast moved the same way on consecutive days.<br>
-      <b>SA1</b> gets only two flags, and only on days its minimum is forecast negative:
+      <b>SA</b> gets only two flags, and only on days its minimum is forecast negative:
       <b>Uncertainty 10&ndash;16h</b> (average 80% range width over those AEST hours, vs yesterday) and
       <b>Min revised</b> (daily minimum moved the same way on consecutive days).
-      At most 3 days are shown per state, highest-demand day first (SA1: lowest-minimum day first).</p>
+      At most 3 days are shown per state, highest-demand day first (SA: lowest-minimum day first).</p>
   </section>
 
   <section class="card">
@@ -61,14 +61,14 @@
   </section>
 
   <div class="grid">
-    <section class="card"><h2>QLD1</h2>
-      <a href="charts/QLD1.png"><img data-src="charts/QLD1.png" alt="QLD1 chart"></a></section>
-    <section class="card"><h2>NSW1</h2>
-      <a href="charts/NSW1.png"><img data-src="charts/NSW1.png" alt="NSW1 chart"></a></section>
-    <section class="card"><h2>VIC1</h2>
-      <a href="charts/VIC1.png"><img data-src="charts/VIC1.png" alt="VIC1 chart"></a></section>
-    <section class="card"><h2>SA1</h2>
-      <a href="charts/SA1.png"><img data-src="charts/SA1.png" alt="SA1 chart"></a></section>
+    <section class="card"><h2>QLD</h2>
+      <a href="charts/QLD1.png"><img data-src="charts/QLD1.png" alt="QLD chart"></a></section>
+    <section class="card"><h2>NSW</h2>
+      <a href="charts/NSW1.png"><img data-src="charts/NSW1.png" alt="NSW chart"></a></section>
+    <section class="card"><h2>VIC</h2>
+      <a href="charts/VIC1.png"><img data-src="charts/VIC1.png" alt="VIC chart"></a></section>
+    <section class="card"><h2>SA</h2>
+      <a href="charts/SA1.png"><img data-src="charts/SA1.png" alt="SA chart"></a></section>
   </div>
 
   <p class="note">Source: AEMO NEMweb operational demand forecast (FORECAST_HH). Tap a chart to open it full size.</p>
@@ -85,7 +85,7 @@
   const renderWatch = w => {
     if (!w.rows.length) { watch.textContent = "Nothing notable today."; return; }
     watch.innerHTML = w.rows.map(r =>
-      `<div class="row"><span class="who">${esc(r.day_label)} &middot; ${esc(r.region)}</span>` +
+      `<div class="row"><span class="who">${esc(r.day_label)} &middot; ${esc(r.region.replace(/1$/, ""))}</span>` +
       r.chips.map(c => `<span class="chip ${esc(c.kind)}-${esc(c.dir)}">${esc(c.text)}</span>`).join("") +
       `</div>`).join("") +
       (w.omitted ? `<p class="note">${w.omitted} more not shown.</p>` : "");
