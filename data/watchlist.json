@@ -1,4 +1,18 @@
 {
- "rows": [],
+ "rows": [
+  {
+   "region": "VIC1",
+   "day": "2026-10-14",
+   "day_label": "Wed 14 Oct",
+   "lead": 0,
+   "chips": [
+    {
+     "kind": "band",
+     "dir": "down",
+     "text": "Uncertainty ▼ 40%"
+    }
+   ]
+  }
+ ],
  "omitted": 0
 }
