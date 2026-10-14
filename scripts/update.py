@@ -1,4 +1,4 @@
-"""Pick the ~6AM AEST forecast snapshots for today and yesterday from NEMweb
+"""Pick the ~7AM AEST forecast snapshots for today and yesterday from NEMweb
 (FORECAST_HH), then draw demand charts and a day-by-day forecast-change chart.
 
 No file rotation is needed: both snapshots are chosen by name from the archive.
@@ -36,6 +36,7 @@ W_STREAK_Z = _W.get("streak_min_z", 1.0)                 # each must be this man
 W_ROWS_PER_STATE = _W.get("max_rows_per_state", 3)  # rows kept per state; the rest are counted as "not shown"
 W_MIN_STATES = _W.get("min_states", ["SA1"])    # states flagged ONLY on negative-minimum days (no peak flags)
 W_MIN_WINDOW = _W.get("min_window", ["10:00", "16:00"])  # hours (NEM time) used for those states' uncertainty flag
+W_D0_FROM = _W.get("d0_earliest_time", "10:00")  # on today (D0) skip flags whose key time (peak / minimum) is earlier than this, AEST
 AEST = timezone(timedelta(hours=10))  # NEM time: fixed UTC+10, no DST
 # Snapshot cutoff is a wall-clock time in Sydney (follows daylight saving). File names and
 # issue times from NEMweb are NEM time (AEST), so cutoffs are converted to AEST.
@@ -369,6 +370,7 @@ def peak_info(t, y):
             level=g.loc[it, "poe50_t"],
             p10max_t=g.poe10_t.max(),                            # highest POE10 of the day (today's forecast)
             min_t=g.poe50_t.min(),                               # lowest POE50 of the day (today's forecast)
+            min_time_t=g.loc[g.poe50_t.idxmin(), "time"],       # when that lowest value occurs
             win_t=(gw.poe10_t - gw.poe90_t).abs().mean() if ok else np.nan,
             win_y=(gw.poe10_y - gw.poe90_y).abs().mean() if ok else np.nan))
     return pd.DataFrame(out)
@@ -414,9 +416,12 @@ def build_watchlist(t, y, hist, today):
     st, stm = revision_streaks(hist, today), revision_streaks(hist, today, "delta_min")
     hrs = lambda x: x[:2].lstrip("0") or "0"
     win_label = f"{hrs(W_MIN_WINDOW[0])}\u2013{hrs(W_MIN_WINDOW[1])}h"
+    d0_from = int(W_D0_FROM[:2]) * 60 + int(W_D0_FROM[3:5])
+    tod = lambda ts: ts.hour * 60 + ts.minute
     rows = []
     for r in pk.itertuples():
         chips = []
+        is_d0 = pd.Timestamp(r.day) == pd.Timestamp(today)
         if r.region in W_MIN_STATES:
             # e.g. SA1: no peak flags at all; only on days the minimum is forecast negative
             if r.min_t < 0:
@@ -426,10 +431,10 @@ def build_watchlist(t, y, hist, today):
                     chips.append({"kind": "band", "dir": "up" if dw > 0 else "down",
                                   "text": f"Uncertainty {win_label} {'▲' if dw > 0 else '▼'} {abs(pct):.0f}%"})
                 nm, totm, sgm = stm.get((r.region, str(r.day)), (0, 0.0, 0))
-                if nm >= W_STREAK_N:
+                if nm >= W_STREAK_N and not (is_d0 and tod(r.min_time_t) < d0_from):
                     chips.append({"kind": "streak", "dir": "up" if sgm > 0 else "down",
                                   "text": f"Min revised {'↑' if sgm > 0 else '↓'} {nm} days, {totm:+,.0f} MW"})
-        else:
+        elif not (is_d0 and tod(r.peak_t) < d0_from):  # today: nothing about a peak that is over before the cut-off time
             dw = r.width_t - r.width_y
             pct = dw / r.width_y * 100 if r.width_y > 0 else 0
             if abs(pct) >= W_BAND_PCT and abs(dw) >= W_BAND_FLOOR_PCT / 100 * r.level:
@@ -497,7 +502,7 @@ def plot_delta(t, y, files):
     ax.tick_params(axis="x", rotation=30)
     n = int(d.base_n.max()) if len(d) else 0
     fig.text(0.01, 0.01, f"* unusually large for that state and days-ahead (|robust z| > {FLAG_Z:g}, "
-             f"vs up to {n} past days; not flagged if < {MIN_N} days of history)", fontsize=7, color="dimgrey")
+             f"vs up to {n} past days; blank if < {MIN_N} days of history)", fontsize=7, color="dimgrey")
     fig.tight_layout(rect=(0, 0.04, 1, 1)); fig.savefig(CHARTS / "delta_demand.png", dpi=130); plt.close(fig)
 
 
