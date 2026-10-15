@@ -1,18 +1,4 @@
 {
- "rows": [
-  {
-   "region": "SA1",
-   "day": "2026-10-15",
-   "day_label": "Thu 15 Oct",
-   "lead": 0,
-   "chips": [
-    {
-     "kind": "band",
-     "dir": "down",
-     "text": "Uncertainty 10–16h ▼ 27%"
-    }
-   ]
-  }
- ],
+ "rows": [],
  "omitted": 0
 }
