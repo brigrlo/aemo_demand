@@ -526,7 +526,7 @@ def plot_delta(t, y, files):
            ylabel="MW (positive = forecast raised)", xlabel="")
     ax.tick_params(axis="x", rotation=30)
     n = int(d.base_n.max()) if len(d) else 0
-    rule = (f"among the {FLAG_TARGET:g}% most unusual of that state's own past revisions at that days-ahead"
+    rule = (f"among the ~{FLAG_TARGET:g}% most unusual of that state's past revisions"
             if FLAG_TARGET else f"|robust z| > {FLAG_Z:g}")
     fig.text(0.01, 0.01, f"* unusually large: {rule} (vs up to {n} past days)", fontsize=7, color="dimgrey")
     fig.tight_layout(rect=(0, 0.04, 1, 1)); fig.savefig(CHARTS / "delta_demand.png", dpi=130); plt.close(fig)
