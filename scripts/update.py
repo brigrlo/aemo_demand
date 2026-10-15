@@ -24,6 +24,8 @@ CFG = json.loads((ROOT / "config.json").read_text())
 TH = CFG["thresholds"]
 FLAG_Z = CFG.get("flag_z", 2.0)          # |robust z| above this is flagged
 MIN_N = CFG.get("min_history_days", 15)  # baseline days needed per state and lead
+FLAG_TARGET = CFG.get("flag_target_pct", 5)  # asterisk = top X% most unusual of each state's OWN past revisions (0/null: use flag_z for all)
+FLAG_MIN_Z = CFG.get("flag_min_z", 1.5)     # floor for a state's auto cut-off
 WINDOW = CFG.get("history_window_days", 90)  # rolling baseline length in days
 _W = CFG.get("watchlist", {})                    # all optional, defaults shown
 # Every size test is relative to the state, so big-demand states aren't over-represented:
@@ -316,26 +318,49 @@ def update_history(files, today):
     return h
 
 
+def state_cutoffs(hist):
+    """Per-state z cut-off: the |z| exceeded by only FLAG_TARGET % of that state's own past revisions,
+    so every state flags at about the same rate. Needs enough history; otherwise flag_z is used."""
+    cuts = {}
+    if not FLAG_TARGET:
+        return cuts
+    for reg, g in hist.groupby("region"):
+        zs = []
+        for _, gl in g.groupby("lead"):
+            x = gl.delta.dropna()
+            if len(x) < MIN_N:
+                continue
+            med = x.median()
+            sc = 1.4826 * (x - med).abs().median() or x.std()
+            if sc and sc > 0:
+                zs.append(((x - med) / sc).abs())
+        if zs and sum(len(z) for z in zs) >= 100:
+            cuts[reg] = max(float(pd.concat(zs).quantile(1 - FLAG_TARGET / 100)), FLAG_MIN_Z)
+    return cuts
+
+
 def add_flags(d, hist, today):
     """Compare each of today's changes with past changes for the SAME state and lead (days ahead)."""
     hist = hist[hist.snap_date < today.isoformat()]
+    cuts = state_cutoffs(hist)
     rows = []
     for r in d.itertuples():
         lead = (pd.Timestamp(r.day) - pd.Timestamp(today)).days
         h = hist[(hist.region == r.region) & (hist.lead == lead)].delta.dropna()
         n, z, flag, med, p5, p95 = len(h), np.nan, False, np.nan, np.nan, np.nan
         scale, lo, hi = np.nan, np.nan, np.nan
+        cut = cuts.get(r.region, FLAG_Z)  # this state's cut-off (flag_z if there isn't enough history yet)
         if n >= MIN_N:
             med = h.median()
             scale = 1.4826 * (h - med).abs().median() or h.std()   # robust spread, falls back to std
             p5, p95 = h.quantile(.05), h.quantile(.95)
             if scale and scale > 0:
                 z = (r.delta - med) / scale
-                flag = bool(abs(z) > FLAG_Z)
-                lo, hi = med - FLAG_Z * scale, med + FLAG_Z * scale  # a change outside these MW limits gets the *
-        rows.append((lead, n, med, p5, p95, scale, lo, hi, z, flag))
+                flag = bool(abs(z) > cut)
+                lo, hi = med - cut * scale, med + cut * scale  # a change outside these MW limits gets the *
+        rows.append((lead, n, med, p5, p95, scale, cut, lo, hi, z, flag))
     d = d.copy()
-    d[["lead", "base_n", "base_median", "base_p5", "base_p95", "base_scale", "flag_low", "flag_high", "z", "flag"]] = rows
+    d[["lead", "base_n", "base_median", "base_p5", "base_p95", "base_scale", "flag_cut", "flag_low", "flag_high", "z", "flag"]] = rows
     return d
 
 
@@ -501,8 +526,9 @@ def plot_delta(t, y, files):
            ylabel="MW (positive = forecast raised)", xlabel="")
     ax.tick_params(axis="x", rotation=30)
     n = int(d.base_n.max()) if len(d) else 0
-    fig.text(0.01, 0.01, f"* unusually large for that state and days-ahead (|robust z| > {FLAG_Z:g}, "
-             f"vs up to {n} past days; blank if < {MIN_N} days of history)", fontsize=7, color="dimgrey")
+    rule = (f"among the {FLAG_TARGET:g}% most unusual of that state's own past revisions at that days-ahead"
+            if FLAG_TARGET else f"|robust z| > {FLAG_Z:g}")
+    fig.text(0.01, 0.01, f"* unusually large: {rule} (vs up to {n} past days)", fontsize=7, color="dimgrey")
     fig.tight_layout(rect=(0, 0.04, 1, 1)); fig.savefig(CHARTS / "delta_demand.png", dpi=130); plt.close(fig)
 
 
