@@ -1,15 +1,41 @@
 {
  "rows": [
   {
-   "region": "VIC1",
-   "day": "2026-10-21",
-   "day_label": "Wed 21 Oct",
-   "lead": 3,
+   "region": "NSW1",
+   "day": "2026-10-25",
+   "day_label": "Sun 25 Oct",
+   "lead": 6,
    "chips": [
     {
      "kind": "band",
      "dir": "up",
-     "text": "Uncertainty ▲ 59%"
+     "text": "Uncertainty ▲ 62%"
+    }
+   ]
+  },
+  {
+   "region": "NSW1",
+   "day": "2026-10-24",
+   "day_label": "Sat 24 Oct",
+   "lead": 5,
+   "chips": [
+    {
+     "kind": "streak",
+     "dir": "up",
+     "text": "Revised ↑ 3 days, +674 MW"
+    }
+   ]
+  },
+  {
+   "region": "SA1",
+   "day": "2026-10-25",
+   "day_label": "Sun 25 Oct",
+   "lead": 6,
+   "chips": [
+    {
+     "kind": "band",
+     "dir": "down",
+     "text": "Uncertainty 10–16h ▼ 80%"
     }
    ]
   }
