@@ -46,9 +46,11 @@
   <section class="card">
     <h2>Watchlist</h2>
     <div id="watch">Loading&hellip;</div>
-    <p class="note"><b>Uncertainty</b>: width of the 80% range (POE10&ndash;POE90) at the daily peak, vs yesterday.
-      <b>Peak</b>: the daily peak has moved to a different time (shown only when POE10 reaches the state's threshold).
-      <b>Revised</b>: forecast moved the same way on consecutive days.<br>
+    <p class="note"><b>Spread changed</b>: width of the 80% range (POE10&ndash;POE90) at the daily peak, vs yesterday.
+      <b>Evening spread high</b>: the POE10&ndash;POE50 gap over 16&ndash;21h is in the top 20% of that state's own past values at that days-ahead.
+      <b>Peak</b>: the daily peak has moved to a different time.
+      These three show only when POE10 reaches 95% of the state's threshold.
+      <b>Revised</b>: forecast moved the same way on consecutive days (no threshold condition).<br>
       <b>SA</b> gets only two flags, and only on days its minimum is forecast negative:
       <b>Uncertainty 10&ndash;16h</b> (average 80% range width over those AEST hours, vs yesterday) and
       <b>Min revised</b> (daily minimum moved the same way on consecutive days).
