@@ -1,15 +1,15 @@
 {
  "rows": [
   {
-   "region": "NSW1",
-   "day": "2026-10-25",
-   "day_label": "Sun 25 Oct",
-   "lead": 6,
+   "region": "QLD1",
+   "day": "2026-10-26",
+   "day_label": "Mon 26 Oct",
+   "lead": 7,
    "chips": [
     {
      "kind": "band",
      "dir": "up",
-     "text": "Uncertainty ▲ 62%"
+     "text": "Evening spread high"
     }
    ]
   },
@@ -23,6 +23,19 @@
      "kind": "streak",
      "dir": "up",
      "text": "Revised ↑ 3 days, +674 MW"
+    }
+   ]
+  },
+  {
+   "region": "VIC1",
+   "day": "2026-10-22",
+   "day_label": "Thu 22 Oct",
+   "lead": 3,
+   "chips": [
+    {
+     "kind": "band",
+     "dir": "up",
+     "text": "Evening spread high"
     }
    ]
   },
