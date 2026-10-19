@@ -39,6 +39,9 @@ W_ROWS_PER_STATE = _W.get("max_rows_per_state", 3)  # rows kept per state; the r
 W_MIN_STATES = _W.get("min_states", ["SA1"])    # states flagged ONLY on negative-minimum days (no peak flags)
 W_MIN_WINDOW = _W.get("min_window", ["10:00", "16:00"])  # hours (NEM time) used for those states' uncertainty flag
 W_D0_FROM = _W.get("d0_earliest_time", "10:00")  # on today (D0) skip flags whose key time (peak / minimum) is earlier than this, AEST
+W_P10_GATE = _W.get("poe10_gate_pct", 95) / 100          # NSW/QLD/VIC chips (except Revised): highest POE10 of the day >= this share of the threshold
+W_EVE_WINDOW = _W.get("evening_window", ["16:00", "21:00"])  # hours (NEM time) for the evening-spread chip
+W_EVE_TOP = _W.get("evening_top_pct", 20)                 # chip if the evening spread is in the top X% of that state's own past values
 AEST = timezone(timedelta(hours=10))  # NEM time: fixed UTC+10, no DST
 # Snapshot cutoff is a wall-clock time in Sydney (follows daylight saving). File names and
 # issue times from NEMweb are NEM time (AEST), so cutoffs are converted to AEST.
@@ -282,6 +285,17 @@ def daily_changes(t, y):
                                          today_min=("poe50_t", "min"), yest_min=("poe50_y", "min")).reset_index()
     d["delta"] = d.today_max - d.yest_max
     d["delta_min"] = d.today_min - d.yest_min
+    # evening upside spread: average of (POE10 - POE50) / POE50 over the evening window, in % (needs >= 8 of 10 half-hours)
+    tod = interval_start(m["time"]).dt.hour * 60 + interval_start(m["time"]).dt.minute
+    e0, e1 = (int(x[:2]) * 60 + int(x[3:5]) for x in W_EVE_WINDOW)
+    ev = m[(tod >= e0) & (tod < e1) & (m.poe50_t > 0)].copy()
+    if ev.empty:
+        d["ev_spread"] = np.nan
+    else:
+        ev["sp"] = (ev.poe10_t - ev.poe50_t) / ev.poe50_t * 100
+        g = ev.groupby(["region", "day"]).sp.agg(ev_spread="mean", n="count").reset_index()
+        g.loc[g.n < 8, "ev_spread"] = np.nan
+        d = d.merge(g[["region", "day", "ev_spread"]], on=["region", "day"], how="left")
     return d
 
 
@@ -289,7 +303,7 @@ def update_history(files, today):
     """One row per (snapshot date, state, target day); only missing dates are downloaded."""
     snap = SNAP_KEY
     cols = ["snap", "snap_date", "region", "day", "lead", "today_max", "yest_max", "delta",
-            "today_min", "yest_min", "delta_min"]
+            "today_min", "yest_min", "delta_min", "ev_spread"]
     if HIST.exists():
         h = pd.read_csv(HIST, dtype={"snap": str})
         if set(cols) <= set(h.columns):
@@ -380,6 +394,7 @@ def peak_info(t, y):
     st = interval_start(m["time"])
     m["tod"] = st.dt.hour * 60 + st.dt.minute
     w0, w1 = (int(x[:2]) * 60 + int(x[3:5]) for x in W_MIN_WINDOW)
+    e0, e1 = (int(x[:2]) * 60 + int(x[3:5]) for x in W_EVE_WINDOW)
     out = []
     for (reg, day), g in m.groupby(["region", "day"]):
         if len(g) < 24:  # skip sliver days
@@ -387,6 +402,7 @@ def peak_info(t, y):
         it, iy = g.poe50_t.idxmax(), g.poe50_y.idxmax()
         gw = g[(g.tod >= w0) & (g.tod < w1)]
         ok = len(gw) >= 6
+        ge = g[(g.tod >= e0) & (g.tod < e1)]
         out.append(dict(
             region=reg, day=day, peak_t=g.loc[it, "time"], peak_y=g.loc[iy, "time"],
             width_t=abs(g.loc[it, "poe10_t"] - g.loc[it, "poe90_t"]),
@@ -396,6 +412,7 @@ def peak_info(t, y):
             p10max_t=g.poe10_t.max(),                            # highest POE10 of the day (today's forecast)
             min_t=g.poe50_t.min(),                               # lowest POE50 of the day (today's forecast)
             min_time_t=g.loc[g.poe50_t.idxmin(), "time"],       # when that lowest value occurs
+            ev_p10max_t=ge.poe10_t.max() if len(ge) >= 8 else np.nan,  # highest POE10 in the evening window
             win_t=(gw.poe10_t - gw.poe90_t).abs().mean() if ok else np.nan,
             win_y=(gw.poe10_y - gw.poe90_y).abs().mean() if ok else np.nan))
     return pd.DataFrame(out)
@@ -443,6 +460,11 @@ def build_watchlist(t, y, hist, today):
     win_label = f"{hrs(W_MIN_WINDOW[0])}\u2013{hrs(W_MIN_WINDOW[1])}h"
     d0_from = int(W_D0_FROM[:2]) * 60 + int(W_D0_FROM[3:5])
     tod = lambda ts: ts.hour * 60 + ts.minute
+    # evening spread: today's value, and each state's own past distribution at the same days-ahead
+    eve = hist.dropna(subset=["ev_spread"])
+    base = eve[eve.snap_date < today.isoformat()]
+    q = {k: g.quantile(1 - W_EVE_TOP / 100) for k, g in base.groupby(["region", "lead"]).ev_spread if len(g) >= MIN_N}
+    cur = eve[eve.snap_date == today.isoformat()].set_index(["region", "day"]).ev_spread.to_dict()
     rows = []
     for r in pk.itertuples():
         chips = []
@@ -459,21 +481,28 @@ def build_watchlist(t, y, hist, today):
                 if nm >= W_STREAK_N and not (is_d0 and tod(r.min_time_t) < d0_from):
                     chips.append({"kind": "streak", "dir": "up" if sgm > 0 else "down",
                                   "text": f"Min revised {'↑' if sgm > 0 else '↓'} {nm} days, {totm:+,.0f} MW"})
-        elif not (is_d0 and tod(r.peak_t) < d0_from):  # today: nothing about a peak that is over before the cut-off time
-            dw = r.width_t - r.width_y
-            pct = dw / r.width_y * 100 if r.width_y > 0 else 0
-            if abs(pct) >= W_BAND_PCT and abs(dw) >= W_BAND_FLOOR_PCT / 100 * r.level:
-                chips.append({"kind": "band", "dir": "up" if dw > 0 else "down",
-                              "text": f"Uncertainty {'▲' if dw > 0 else '▼'} {abs(pct):.0f}%"})
-            shift = (r.peak_t - r.peak_y).total_seconds() / 60
+        else:
             th = TH.get(r.region)
-            # peak timing matters only when the high-demand case (POE10) reaches the state's threshold
-            if (abs(shift) >= W_PEAK_MIN and r.drop_t >= W_PEAK_PCT / 100 * r.level
-                    and th is not None and r.p10max_t >= th):
-                chips.append({"kind": "peak", "dir": "later" if shift > 0 else "earlier",
-                              "text": f"Peak {r.peak_y:%H:%M} → {r.peak_t:%H:%M}"})
+            early = is_d0 and tod(r.peak_t) < d0_from  # today: nothing about a peak that is over before the cut-off time
+            gate = th is not None and r.p10max_t >= W_P10_GATE * th  # high-demand case (POE10) close to / over the threshold
+            if not early and gate:
+                dw = r.width_t - r.width_y
+                pct = dw / r.width_y * 100 if r.width_y > 0 else 0
+                if abs(pct) >= W_BAND_PCT and abs(dw) >= W_BAND_FLOOR_PCT / 100 * r.level:
+                    chips.append({"kind": "band", "dir": "up" if dw > 0 else "down",
+                                  "text": f"Spread changed {'▲' if dw > 0 else '▼'} {abs(pct):.0f}%"})
+            lead = (pd.Timestamp(r.day) - pd.Timestamp(today)).days
+            sp, lim = cur.get((r.region, str(r.day))), q.get((r.region, lead))
+            if (th is not None and sp is not None and lim is not None and sp > lim
+                    and r.ev_p10max_t >= W_P10_GATE * th):  # evening spread unusually high AND POE10 near the threshold
+                chips.append({"kind": "band", "dir": "up", "text": "Evening spread high"})
+            if not early and gate:
+                shift = (r.peak_t - r.peak_y).total_seconds() / 60
+                if abs(shift) >= W_PEAK_MIN and r.drop_t >= W_PEAK_PCT / 100 * r.level:
+                    chips.append({"kind": "peak", "dir": "later" if shift > 0 else "earlier",
+                                  "text": f"Peak {r.peak_y:%H:%M} → {r.peak_t:%H:%M}"})
             n, tot, sg = st.get((r.region, str(r.day)), (0, 0.0, 0))
-            if n >= W_STREAK_N:
+            if not early and n >= W_STREAK_N:  # Revised is not tied to the threshold
                 chips.append({"kind": "streak", "dir": "up" if sg > 0 else "down",
                               "text": f"Revised {'↑' if sg > 0 else '↓'} {n} days, {tot:+,.0f} MW"})
         if chips:
@@ -526,7 +555,7 @@ def plot_delta(t, y, files):
            ylabel="MW (positive = forecast raised)", xlabel="")
     ax.tick_params(axis="x", rotation=30)
     n = int(d.base_n.max()) if len(d) else 0
-    rule = (f"among the ~{FLAG_TARGET:g}% most unusual of that state's past revisions"
+    rule = (f"among the {FLAG_TARGET:g}% most unusual of that state's own past revisions at that days-ahead"
             if FLAG_TARGET else f"|robust z| > {FLAG_Z:g}")
     fig.text(0.01, 0.01, f"* unusually large: {rule} (vs up to {n} past days)", fontsize=7, color="dimgrey")
     fig.tight_layout(rect=(0, 0.04, 1, 1)); fig.savefig(CHARTS / "delta_demand.png", dpi=130); plt.close(fig)
