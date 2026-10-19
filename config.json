@@ -5,13 +5,17 @@
   "flag_z": 2.5,
   "min_history_days": 15,
   "history_window_days": 90,
-  "watchlist": {
+    "watchlist": {
     "band_change_pct": 25,
     "band_change_min_pct_of_peak": 0.3,
     "peak_shift_min_minutes": 60,
     "peak_shift_min_pct": 0.5,
+    "poe10_gate_pct": 95,
+    "evening_window": ["16:00", "21:00"],
+    "evening_top_pct": 20,
     "streak_min_days": 3,
     "streak_min_z": 1.0,
+    "d0_earliest_time": "10:00",
     "max_rows_per_state": 3,
     "min_states": ["SA1"],
     "min_window": ["10:00", "16:00"]
