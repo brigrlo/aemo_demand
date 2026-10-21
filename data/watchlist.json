@@ -4,7 +4,7 @@
    "region": "QLD1",
    "day": "2026-10-26",
    "day_label": "Mon 26 Oct",
-   "lead": 5,
+   "lead": 4,
    "chips": [
     {
      "kind": "band",
@@ -17,7 +17,7 @@
    "region": "QLD1",
    "day": "2026-10-27",
    "day_label": "Tue 27 Oct",
-   "lead": 6,
+   "lead": 5,
    "chips": [
     {
      "kind": "band",
@@ -30,7 +30,7 @@
    "region": "VIC1",
    "day": "2026-10-22",
    "day_label": "Thu 22 Oct",
-   "lead": 1,
+   "lead": 0,
    "chips": [
     {
      "kind": "band",
