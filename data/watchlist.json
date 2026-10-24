@@ -4,12 +4,25 @@
    "region": "QLD1",
    "day": "2026-10-26",
    "day_label": "Mon 26 Oct",
-   "lead": 2,
+   "lead": 1,
    "chips": [
     {
      "kind": "band",
      "dir": "up",
      "text": "Evening spread high"
+    }
+   ]
+  },
+  {
+   "region": "VIC1",
+   "day": "2026-10-25",
+   "day_label": "Sun 25 Oct",
+   "lead": 0,
+   "chips": [
+    {
+     "kind": "streak",
+     "dir": "up",
+     "text": "Revised ↑ 3 days, +362 MW"
     }
    ]
   }
