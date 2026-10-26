@@ -2,9 +2,22 @@
  "rows": [
   {
    "region": "QLD1",
-   "day": "2026-10-26",
-   "day_label": "Mon 26 Oct",
+   "day": "2026-10-27",
+   "day_label": "Tue 27 Oct",
    "lead": 0,
+   "chips": [
+    {
+     "kind": "band",
+     "dir": "up",
+     "text": "Evening spread high"
+    }
+   ]
+  },
+  {
+   "region": "QLD1",
+   "day": "2026-11-03",
+   "day_label": "Tue 03 Nov",
+   "lead": 7,
    "chips": [
     {
      "kind": "band",
@@ -17,7 +30,7 @@
    "region": "QLD1",
    "day": "2026-11-02",
    "day_label": "Mon 02 Nov",
-   "lead": 7,
+   "lead": 6,
    "chips": [
     {
      "kind": "band",
@@ -25,20 +38,7 @@
      "text": "Evening spread high"
     }
    ]
-  },
-  {
-   "region": "SA1",
-   "day": "2026-10-29",
-   "day_label": "Thu 29 Oct",
-   "lead": 3,
-   "chips": [
-    {
-     "kind": "band",
-     "dir": "down",
-     "text": "Uncertainty 10–16h ▼ 75%"
-    }
-   ]
   }
  ],
- "omitted": 0
+ "omitted": 1
 }
