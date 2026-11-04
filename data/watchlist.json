@@ -4,7 +4,7 @@
    "region": "QLD1",
    "day": "2026-11-05",
    "day_label": "Thu 05 Nov",
-   "lead": 1,
+   "lead": 0,
    "chips": [
     {
      "kind": "band",
@@ -15,9 +15,9 @@
   },
   {
    "region": "QLD1",
-   "day": "2026-11-04",
-   "day_label": "Wed 04 Nov",
-   "lead": 0,
+   "day": "2026-11-12",
+   "day_label": "Thu 12 Nov",
+   "lead": 7,
    "chips": [
     {
      "kind": "band",
@@ -30,7 +30,7 @@
    "region": "QLD1",
    "day": "2026-11-11",
    "day_label": "Wed 11 Nov",
-   "lead": 7,
+   "lead": 6,
    "chips": [
     {
      "kind": "band",
@@ -40,5 +40,5 @@
    ]
   }
  ],
- "omitted": 0
+ "omitted": 1
 }
