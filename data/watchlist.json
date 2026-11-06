@@ -53,7 +53,7 @@
     {
      "kind": "low",
      "dir": "min",
-     "text": "Min below 150 MW"
+     "text": "Min below -150 MW"
     },
     {
      "kind": "band",
@@ -71,23 +71,10 @@
     {
      "kind": "low",
      "dir": "min",
-     "text": "Min below 150 MW"
-    }
-   ]
-  },
-  {
-   "region": "SA1",
-   "day": "2026-11-06",
-   "day_label": "Fri 06 Nov",
-   "lead": 0,
-   "chips": [
-    {
-     "kind": "low",
-     "dir": "min",
-     "text": "Min below 150 MW"
+     "text": "Min below -150 MW"
     }
    ]
   }
  ],
- "omitted": 2
+ "omitted": 1
 }
