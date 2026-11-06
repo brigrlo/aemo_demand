@@ -22,7 +22,7 @@ META = DATA / "meta.json"
 HIST = DATA / "revision_history.csv"
 CFG = json.loads((ROOT / "config.json").read_text())
 TH = CFG["thresholds"]
-MIN_TH = CFG.get("min_thresholds", {"SA1": 150})  # low-demand thresholds (MW): dashed line on that state's chart; SA watchlist chips when the POE50 minimum is below it
+MIN_TH = CFG.get("min_thresholds", {"SA1": -150})  # low-demand thresholds (MW): dashed line on that state's chart; SA watchlist chips when the POE50 minimum is below it
 FLAG_Z = CFG.get("flag_z", 2.0)          # |robust z| above this is flagged
 MIN_N = CFG.get("min_history_days", 15)  # baseline days needed per state and lead
 FLAG_TARGET = CFG.get("flag_target_pct", 5)  # asterisk = top X% most unusual of each state's OWN past revisions (0/null: use flag_z for all)
