@@ -51,12 +51,43 @@
    "lead": 2,
    "chips": [
     {
+     "kind": "low",
+     "dir": "min",
+     "text": "Min below 150 MW"
+    },
+    {
      "kind": "band",
      "dir": "down",
      "text": "Uncertainty 10–16h ▼ 25%"
     }
    ]
+  },
+  {
+   "region": "SA1",
+   "day": "2026-11-07",
+   "day_label": "Sat 07 Nov",
+   "lead": 1,
+   "chips": [
+    {
+     "kind": "low",
+     "dir": "min",
+     "text": "Min below 150 MW"
+    }
+   ]
+  },
+  {
+   "region": "SA1",
+   "day": "2026-11-06",
+   "day_label": "Fri 06 Nov",
+   "lead": 0,
+   "chips": [
+    {
+     "kind": "low",
+     "dir": "min",
+     "text": "Min below 150 MW"
+    }
+   ]
   }
  ],
- "omitted": 1
+ "omitted": 2
 }
