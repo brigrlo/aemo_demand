@@ -31,6 +31,7 @@
   .peak-later, .peak-earlier { background:rgba(124,58,237,.14); border-color:rgba(124,58,237,.5); }
   .streak-up   { background:rgba(220,38,38,.14); border-color:rgba(220,38,38,.5); }
   .streak-down { background:rgba(37,99,235,.14); border-color:rgba(37,99,235,.5); }
+  .low-min { background:rgba(147,51,234,.14); border-color:rgba(147,51,234,.5); }
 </style>
 </head>
 <body>
@@ -47,13 +48,13 @@
     <h2>Watchlist</h2>
     <div id="watch">Loading&hellip;</div>
     <p class="note"><b>Spread changed</b>: width of the 80% range (POE10&ndash;POE90) at the daily peak, vs yesterday.
-      <b>Evening spread high</b>: the POE10&ndash;POE50 gap over 16&ndash;21h is in the top 20% of that state's own past values at that lead time.
+      <b>Evening spread high</b>: the POE10&ndash;POE50 gap over 16&ndash;21h is in the top 20% of that state's own past values at that days-ahead.
       <b>Peak</b>: the daily peak has moved to a different time.
       These three show only when POE10 reaches 95% of the state's threshold.
       <b>Revised</b>: forecast moved the same way on consecutive days (no threshold condition).<br>
-      <b>SA</b> gets only two flags, and only on days its minimum is forecast negative:
-      <b>Uncertainty 10&ndash;16h</b> (average 80% range width over those AEST hours, vs yesterday) and
-      <b>Min revised</b> (daily minimum moved the same way on consecutive days).<br>
+      <b>SA</b> gets only these flags: <b>Min below 150&nbsp;MW</b> (the day's lowest POE50 is under 150&nbsp;MW) and, only on days its
+      minimum is forecast negative, <b>Uncertainty 10&ndash;16h</b> (average 80% range width over those AEST hours, vs yesterday) and
+      <b>Min revised</b> (daily minimum moved the same way on consecutive days).
       At most 3 days are shown per state, highest-demand day first (SA: lowest-minimum day first).</p>
   </section>
 
