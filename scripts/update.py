@@ -22,6 +22,7 @@ META = DATA / "meta.json"
 HIST = DATA / "revision_history.csv"
 CFG = json.loads((ROOT / "config.json").read_text())
 TH = CFG["thresholds"]
+MIN_TH = CFG.get("min_thresholds", {"SA1": 150})  # low-demand thresholds (MW): dashed line on that state's chart; SA watchlist chips when the POE50 minimum is below it
 FLAG_Z = CFG.get("flag_z", 2.0)          # |robust z| above this is flagged
 MIN_N = CFG.get("min_history_days", 15)  # baseline days needed per state and lead
 FLAG_TARGET = CFG.get("flag_target_pct", 5)  # asterisk = top X% most unusual of each state's OWN past revisions (0/null: use flag_z for all)
@@ -238,7 +239,8 @@ def plot_states(t):
             label_neg_min(ax, g)
         ax.margins(y=.15)
         if TH[st] is not None:
-            ax.axhline(TH[st], color="red", ls="--", label=f"Threshold {TH[st]:,}")
+            ax.axhline(TH[st], color="red", ls="--",
+                       label=f"{'Max threshold' if st in MIN_TH else 'Threshold'} {TH[st]:,}")
             lo, hi = g[["poe10", "poe90"]].min(axis=1), g[["poe10", "poe90"]].max(axis=1)
             floor = np.maximum(lo, TH[st])  # shade only inside the 80% band: never below the POE90 line
             over = hi > TH[st]
@@ -246,9 +248,11 @@ def plot_states(t):
             ax.fill_between(g.time, floor, hi, where=over, interpolate=True, color="red", alpha=.18, lw=0)
             # darker red on top, all the way up to POE10, wherever POE50 is above the threshold
             ax.fill_between(g.time, floor, hi, where=over & (g.poe50 > TH[st]), color="red", alpha=.3, lw=0)
+        if st in MIN_TH:
+            ax.axhline(MIN_TH[st], color="tab:purple", ls="--", label=f"Min threshold {MIN_TH[st]:,}")
         ax.set_title(f"{disp(st)} operational demand forecast", pad=30)
         ax.set_ylabel("MW")
-        ax.legend(ncol=5, loc="lower center", bbox_to_anchor=(0.5, 1.0), frameon=False); fmt_days(ax, fig); fig.tight_layout()
+        ax.legend(ncol=6 if st in MIN_TH else 5, loc="lower center", bbox_to_anchor=(0.5, 1.0), frameon=False); fmt_days(ax, fig); fig.tight_layout()
         fig.savefig(CHARTS / f"{st}.png", dpi=130); plt.close(fig)
 
 
@@ -470,8 +474,11 @@ def build_watchlist(t, y, hist, today):
         chips = []
         is_d0 = pd.Timestamp(r.day) == pd.Timestamp(today)
         if r.region in W_MIN_STATES:
-            # e.g. SA1: no peak flags at all; only on days the minimum is forecast negative
-            if r.min_t < 0:
+            # e.g. SA1: no peak flags at all
+            low = MIN_TH.get(r.region)
+            if low is not None and r.min_t < low and not (is_d0 and tod(r.min_time_t) < d0_from):
+                chips.append({"kind": "low", "dir": "min", "text": f"Min below {low:,} MW"})  # POE50 minimum under the low-demand threshold
+            if r.min_t < 0:  # window uncertainty and Min revised: only on days the minimum is forecast negative
                 dw = r.win_t - r.win_y
                 pct = dw / r.win_y * 100 if r.win_y and r.win_y > 0 else 0
                 if abs(pct) >= W_BAND_PCT:
