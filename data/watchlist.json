@@ -2,8 +2,8 @@
  "rows": [
   {
    "region": "QLD1",
-   "day": "2026-11-11",
-   "day_label": "Wed 11 Nov",
+   "day": "2026-11-12",
+   "day_label": "Thu 12 Nov",
    "lead": 4,
    "chips": [
     {
@@ -15,9 +15,9 @@
   },
   {
    "region": "QLD1",
-   "day": "2026-11-12",
-   "day_label": "Thu 12 Nov",
-   "lead": 5,
+   "day": "2026-11-15",
+   "day_label": "Sun 15 Nov",
+   "lead": 7,
    "chips": [
     {
      "kind": "band",
@@ -30,7 +30,7 @@
    "region": "QLD1",
    "day": "2026-11-13",
    "day_label": "Fri 13 Nov",
-   "lead": 6,
+   "lead": 5,
    "chips": [
     {
      "kind": "band",
@@ -43,19 +43,6 @@
    "region": "SA1",
    "day": "2026-11-08",
    "day_label": "Sun 08 Nov",
-   "lead": 1,
-   "chips": [
-    {
-     "kind": "low",
-     "dir": "min",
-     "text": "Min below -150 MW"
-    }
-   ]
-  },
-  {
-   "region": "SA1",
-   "day": "2026-11-07",
-   "day_label": "Sat 07 Nov",
    "lead": 0,
    "chips": [
     {
