@@ -4,7 +4,7 @@
    "region": "QLD1",
    "day": "2026-11-12",
    "day_label": "Thu 12 Nov",
-   "lead": 4,
+   "lead": 3,
    "chips": [
     {
      "kind": "band",
@@ -14,15 +14,15 @@
    ]
   },
   {
-   "region": "SA1",
-   "day": "2026-11-08",
-   "day_label": "Sun 08 Nov",
-   "lead": 0,
+   "region": "QLD1",
+   "day": "2026-11-16",
+   "day_label": "Mon 16 Nov",
+   "lead": 7,
    "chips": [
     {
-     "kind": "low",
-     "dir": "min",
-     "text": "Min below -150 MW"
+     "kind": "band",
+     "dir": "up",
+     "text": "Evening spread high"
     }
    ]
   }
