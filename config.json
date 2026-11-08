@@ -10,7 +10,7 @@
     "band_change_min_pct_of_peak": 0.3,
     "peak_shift_min_minutes": 60,
     "peak_shift_min_pct": 0.5,
-    "poe10_gate_pct": 95,
+    "poe10_gate_pct": 100,
     "evening_window": ["16:00", "21:00"],
     "evening_top_pct": 20,
     "streak_min_days": 3,
