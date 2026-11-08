@@ -22,7 +22,7 @@ META = DATA / "meta.json"
 HIST = DATA / "revision_history.csv"
 CFG = json.loads((ROOT / "config.json").read_text())
 TH = CFG["thresholds"]
-MIN_TH = CFG.get("min_thresholds", {"SA1": -150})  # low-demand thresholds (MW): dashed line on that state's chart; SA watchlist chips when the POE50 minimum is below it
+MIN_TH = CFG.get("min_thresholds", {"SA1": 150})  # low-demand thresholds (MW): dashed line on that state's chart; SA watchlist chips when the POE50 minimum is below it
 FLAG_Z = CFG.get("flag_z", 2.0)          # |robust z| above this is flagged
 MIN_N = CFG.get("min_history_days", 15)  # baseline days needed per state and lead
 FLAG_TARGET = CFG.get("flag_target_pct", 5)  # asterisk = top X% most unusual of each state's OWN past revisions (0/null: use flag_z for all)
@@ -40,7 +40,7 @@ W_ROWS_PER_STATE = _W.get("max_rows_per_state", 3)  # rows kept per state; the r
 W_MIN_STATES = _W.get("min_states", ["SA1"])    # states flagged ONLY on negative-minimum days (no peak flags)
 W_MIN_WINDOW = _W.get("min_window", ["10:00", "16:00"])  # hours (NEM time) used for those states' uncertainty flag
 W_D0_FROM = _W.get("d0_earliest_time", "10:00")  # on today (D0) skip flags whose key time (peak / minimum) is earlier than this, AEST
-W_P10_GATE = _W.get("poe10_gate_pct", 95) / 100          # NSW/QLD/VIC chips (except Revised): highest POE10 of the day >= this share of the threshold
+W_P10_GATE = _W.get("poe10_gate_pct", 100) / 100         # NSW/QLD/VIC chips (except Revised): highest POE10 of the day >= this % of the threshold (100 = must reach it)
 W_EVE_WINDOW = _W.get("evening_window", ["16:00", "21:00"])  # hours (NEM time) for the evening-spread chip
 W_EVE_TOP = _W.get("evening_top_pct", 20)                 # chip if the evening spread is in the top X% of that state's own past values
 AEST = timezone(timedelta(hours=10))  # NEM time: fixed UTC+10, no DST
