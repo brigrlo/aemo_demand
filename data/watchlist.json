@@ -14,32 +14,6 @@
    ]
   },
   {
-   "region": "QLD1",
-   "day": "2026-11-15",
-   "day_label": "Sun 15 Nov",
-   "lead": 7,
-   "chips": [
-    {
-     "kind": "band",
-     "dir": "up",
-     "text": "Evening spread high"
-    }
-   ]
-  },
-  {
-   "region": "QLD1",
-   "day": "2026-11-13",
-   "day_label": "Fri 13 Nov",
-   "lead": 5,
-   "chips": [
-    {
-     "kind": "band",
-     "dir": "up",
-     "text": "Evening spread high"
-    }
-   ]
-  },
-  {
    "region": "SA1",
    "day": "2026-11-08",
    "day_label": "Sun 08 Nov",
@@ -48,7 +22,33 @@
     {
      "kind": "low",
      "dir": "min",
-     "text": "Min below -150 MW"
+     "text": "Min below 150 MW"
+    }
+   ]
+  },
+  {
+   "region": "SA1",
+   "day": "2026-11-15",
+   "day_label": "Sun 15 Nov",
+   "lead": 7,
+   "chips": [
+    {
+     "kind": "low",
+     "dir": "min",
+     "text": "Min below 150 MW"
+    }
+   ]
+  },
+  {
+   "region": "SA1",
+   "day": "2026-11-12",
+   "day_label": "Thu 12 Nov",
+   "lead": 4,
+   "chips": [
+    {
+     "kind": "low",
+     "dir": "min",
+     "text": "Min below 150 MW"
     }
    ]
   }
