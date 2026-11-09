@@ -4,7 +4,25 @@
    "region": "QLD1",
    "day": "2026-11-12",
    "day_label": "Thu 12 Nov",
-   "lead": 3,
+   "lead": 2,
+   "chips": [
+    {
+     "kind": "band",
+     "dir": "up",
+     "text": "Evening spread high"
+    },
+    {
+     "kind": "streak",
+     "dir": "up",
+     "text": "Revised ↑ 3 days, +419 MW"
+    }
+   ]
+  },
+  {
+   "region": "QLD1",
+   "day": "2026-11-11",
+   "day_label": "Wed 11 Nov",
+   "lead": 1,
    "chips": [
     {
      "kind": "band",
@@ -17,7 +35,7 @@
    "region": "QLD1",
    "day": "2026-11-16",
    "day_label": "Mon 16 Nov",
-   "lead": 7,
+   "lead": 6,
    "chips": [
     {
      "kind": "band",
@@ -25,7 +43,20 @@
      "text": "Evening spread high"
     }
    ]
+  },
+  {
+   "region": "NSW1",
+   "day": "2026-11-14",
+   "day_label": "Sat 14 Nov",
+   "lead": 4,
+   "chips": [
+    {
+     "kind": "streak",
+     "dir": "up",
+     "text": "Revised ↑ 3 days, +1,194 MW"
+    }
+   ]
   }
  ],
- "omitted": 0
+ "omitted": 1
 }
