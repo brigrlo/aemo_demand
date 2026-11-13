@@ -1,4 +1,18 @@
 {
- "rows": [],
+ "rows": [
+  {
+   "region": "QLD1",
+   "day": "2026-11-16",
+   "day_label": "Mon 16 Nov",
+   "lead": 2,
+   "chips": [
+    {
+     "kind": "band",
+     "dir": "up",
+     "text": "Evening spread high"
+    }
+   ]
+  }
+ ],
  "omitted": 0
 }
