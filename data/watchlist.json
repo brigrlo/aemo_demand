@@ -1,10 +1,10 @@
 {
  "rows": [
   {
-   "region": "QLD1",
-   "day": "2026-11-16",
-   "day_label": "Mon 16 Nov",
-   "lead": 2,
+   "region": "NSW1",
+   "day": "2026-11-22",
+   "day_label": "Sun 22 Nov",
+   "lead": 7,
    "chips": [
     {
      "kind": "band",
