@@ -4,25 +4,12 @@
    "region": "QLD1",
    "day": "2026-11-23",
    "day_label": "Mon 23 Nov",
-   "lead": 5,
+   "lead": 4,
    "chips": [
     {
      "kind": "streak",
      "dir": "down",
-     "text": "Revised ↓ 3 days, -227 MW"
-    }
-   ]
-  },
-  {
-   "region": "NSW1",
-   "day": "2026-11-23",
-   "day_label": "Mon 23 Nov",
-   "lead": 5,
-   "chips": [
-    {
-     "kind": "band",
-     "dir": "up",
-     "text": "Evening spread high"
+     "text": "Revised ↓ 4 days, -281 MW"
     }
    ]
   }
