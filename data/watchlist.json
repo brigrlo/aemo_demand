@@ -4,20 +4,7 @@
    "region": "NSW1",
    "day": "2026-11-23",
    "day_label": "Mon 23 Nov",
-   "lead": 3,
-   "chips": [
-    {
-     "kind": "band",
-     "dir": "up",
-     "text": "Evening spread high"
-    }
-   ]
-  },
-  {
-   "region": "VIC1",
-   "day": "2026-11-27",
-   "day_label": "Fri 27 Nov",
-   "lead": 7,
+   "lead": 2,
    "chips": [
     {
      "kind": "band",
