@@ -1,10 +1,23 @@
 {
  "rows": [
   {
+   "region": "QLD1",
+   "day": "2026-11-29",
+   "day_label": "Sun 29 Nov",
+   "lead": 7,
+   "chips": [
+    {
+     "kind": "band",
+     "dir": "up",
+     "text": "Evening spread high"
+    }
+   ]
+  },
+  {
    "region": "NSW1",
    "day": "2026-11-23",
    "day_label": "Mon 23 Nov",
-   "lead": 2,
+   "lead": 1,
    "chips": [
     {
      "kind": "band",
