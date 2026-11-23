@@ -4,7 +4,7 @@
    "region": "QLD1",
    "day": "2026-11-30",
    "day_label": "Mon 30 Nov",
-   "lead": 7,
+   "lead": 6,
    "chips": [
     {
      "kind": "band",
@@ -14,15 +14,15 @@
    ]
   },
   {
-   "region": "NSW1",
-   "day": "2026-11-23",
-   "day_label": "Mon 23 Nov",
-   "lead": 0,
+   "region": "VIC1",
+   "day": "2026-11-26",
+   "day_label": "Thu 26 Nov",
+   "lead": 2,
    "chips": [
     {
-     "kind": "band",
+     "kind": "streak",
      "dir": "up",
-     "text": "Evening spread high"
+     "text": "Revised ↑ 3 days, +478 MW"
     }
    ]
   },
@@ -30,12 +30,12 @@
    "region": "SA1",
    "day": "2026-11-24",
    "day_label": "Tue 24 Nov",
-   "lead": 1,
+   "lead": 0,
    "chips": [
     {
      "kind": "band",
      "dir": "down",
-     "text": "Uncertainty 10–16h ▼ 25%"
+     "text": "Uncertainty 10–16h ▼ 30%"
     }
    ]
   }
