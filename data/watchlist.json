@@ -4,7 +4,7 @@
    "region": "QLD1",
    "day": "2026-11-30",
    "day_label": "Mon 30 Nov",
-   "lead": 6,
+   "lead": 5,
    "chips": [
     {
      "kind": "band",
@@ -17,25 +17,12 @@
    "region": "VIC1",
    "day": "2026-11-26",
    "day_label": "Thu 26 Nov",
-   "lead": 2,
+   "lead": 1,
    "chips": [
     {
      "kind": "streak",
      "dir": "up",
-     "text": "Revised ↑ 3 days, +478 MW"
-    }
-   ]
-  },
-  {
-   "region": "SA1",
-   "day": "2026-11-24",
-   "day_label": "Tue 24 Nov",
-   "lead": 0,
-   "chips": [
-    {
-     "kind": "band",
-     "dir": "down",
-     "text": "Uncertainty 10–16h ▼ 30%"
+     "text": "Revised ↑ 4 days, +658 MW"
     }
    ]
   }
