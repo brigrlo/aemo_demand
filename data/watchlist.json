@@ -2,8 +2,8 @@
  "rows": [
   {
    "region": "NSW1",
-   "day": "2026-12-03",
-   "day_label": "Thu 03 Dec",
+   "day": "2026-12-04",
+   "day_label": "Fri 04 Dec",
    "lead": 7,
    "chips": [
     {
@@ -14,10 +14,36 @@
    ]
   },
   {
+   "region": "NSW1",
+   "day": "2026-12-03",
+   "day_label": "Thu 03 Dec",
+   "lead": 6,
+   "chips": [
+    {
+     "kind": "band",
+     "dir": "up",
+     "text": "Evening spread high"
+    }
+   ]
+  },
+  {
+   "region": "NSW1",
+   "day": "2026-12-02",
+   "day_label": "Wed 02 Dec",
+   "lead": 5,
+   "chips": [
+    {
+     "kind": "streak",
+     "dir": "up",
+     "text": "Revised ↑ 3 days, +779 MW"
+    }
+   ]
+  },
+  {
    "region": "VIC1",
    "day": "2026-12-03",
    "day_label": "Thu 03 Dec",
-   "lead": 7,
+   "lead": 6,
    "chips": [
     {
      "kind": "band",
@@ -27,5 +53,5 @@
    ]
   }
  ],
- "omitted": 0
+ "omitted": 1
 }
